@@ -24,7 +24,8 @@ static bool is_fresh_sequence(uint8_t seq) {
         last_cmd_seq = seq;
         return true;
     }
-    uint8_t diff = seq - last_cmd_seq;
+    // Explicit uint8_t modulo arithmetic handles 255 -> 0 wraparound correctly
+    uint8_t diff = (uint8_t)(seq - last_cmd_seq);
     if (diff > 0 && diff < 128) {
         last_cmd_seq = seq;
         return true;
@@ -36,12 +37,14 @@ void bt_callback(esp_spp_cb_event_t event, esp_spp_cb_param_t *param) {
     if (event == ESP_SPP_SRV_OPEN_EVT) {
         bt_client_connected = true;
         first_command = true;
-        watchdog.feed(); // Grace period upon connection
+        parser.reset();
+        watchdog.feed(); // Grace period upon fresh connection
     } else if (event == ESP_SPP_CLOSE_EVT) {
         bt_client_connected = false;
         first_command = true;
+        parser.reset();
         watchdog.reset();
-        motors.emergency_stop();
+        motors.emergency_stop(); // Instantly cut power to all motors
     }
 }
 
@@ -106,19 +109,28 @@ void loop() {
         telem.fw_counter = telemetry_counter;
         telem.left_actual_speed = motors.get_left_actual_speed();
         telem.right_actual_speed = motors.get_right_actual_speed();
-        telem.battery_mv = battery.get_voltage_mv();
         telem.fault_flags = 0;
+
+        if (!battery.is_measurement_valid()) {
+            telem.fault_flags |= FAULT_BATT_INVALID;
+            telem.battery_mv = 0;
+        } else {
+            telem.battery_mv = battery.get_voltage_mv();
+            if (battery.is_low_battery()) {
+                telem.fault_flags |= FAULT_LOW_BATTERY;
+                telem.state = STATE_LOW_BATTERY;
+            }
+        }
 
         if (watchdog.is_expired()) {
             telem.fault_flags |= FAULT_WATCHDOG_TIMEOUT;
             telem.state = STATE_FAILSAFE;
-        } else if (battery.is_low_battery()) {
-            telem.fault_flags |= FAULT_LOW_BATTERY;
-            telem.state = STATE_LOW_BATTERY;
-        } else if (telem.left_actual_speed > 0 || telem.right_actual_speed > 0) {
-            telem.state = STATE_RUNNING;
-        } else {
-            telem.state = STATE_IDLE;
+        } else if (!battery.is_low_battery() || !battery.is_measurement_valid()) {
+            if (telem.left_actual_speed > 0 || telem.right_actual_speed > 0) {
+                telem.state = STATE_RUNNING;
+            } else {
+                telem.state = STATE_IDLE;
+            }
         }
 
         if (bt_client_connected) {

@@ -85,6 +85,9 @@ class BluetoothSppTransport(
         }
 
         disconnect()
+        // Drain any obsolete command frames before initiating new connection
+        while (commandChannel.tryReceive().isSuccess) {}
+
         _connectionStatus.value = ConnectionStatus.CONNECTING
         _activeDeviceName.value = deviceName
 
@@ -124,6 +127,9 @@ class BluetoothSppTransport(
         readJob?.cancel()
         readJob = null
 
+        // Flush and drain any pending unwritten frames so motion commands are never replayed upon reconnect
+        while (commandChannel.tryReceive().isSuccess) {}
+
         try {
             outputStream?.close()
         } catch (_: Exception) {}
@@ -143,19 +149,19 @@ class BluetoothSppTransport(
     }
 
     override fun sendCommand(command: CommandFrame) {
-        if (_connectionStatus.value != ConnectionStatus.CONNECTED) return
         if (command.isStop) {
             // High-priority stop command: flush/drain any pending unwritten motion frames
-            while (commandChannel.tryReceive().isSuccess) {
-                // Drain stale commands
-            }
+            while (commandChannel.tryReceive().isSuccess) {}
         }
+        if (_connectionStatus.value != ConnectionStatus.CONNECTED) return
         // Offer to FIFO conflated channel; consumed sequentially by single writer coroutine
         commandChannel.trySend(command)
     }
 
     private fun startWritingLoop() {
         writeJob?.cancel()
+        // Drain channel immediately before launching writer coroutine
+        while (commandChannel.tryReceive().isSuccess) {}
         writeJob = scope.launch(Dispatchers.IO) {
             for (cmd in commandChannel) {
                 val out = outputStream

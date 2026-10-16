@@ -111,4 +111,29 @@ class ProtocolTest {
         val expectedCrc = Crc8.calculate(bytes, 0, 9)
         assertEquals(expectedCrc, bytes[9])
     }
+
+    @Test
+    fun testTelemetryBatteryInvalidFlag() {
+        val buf = ByteArray(13)
+        buf[0] = 0xAA.toByte()
+        buf[1] = 0x01.toByte()
+        buf[2] = 0x10.toByte()
+        buf[3] = 0x07.toByte()
+        buf[4] = 0x01.toByte() // RUNNING
+        buf[5] = 100.toByte()
+        buf[6] = 100.toByte()
+        buf[7] = 0x2E.toByte() // 11800 mV
+        buf[8] = 0x18.toByte()
+        buf[9] = TelemetryFrame.FAULT_BATT_INVALID.toByte() // 0x10
+        buf[10] = 1.toByte()
+        buf[11] = Crc8.calculate(buf, 0, 11)
+        buf[12] = 0x55.toByte()
+
+        val parsed = TelemetryFrame.parse(buf)
+        assertNotNull(parsed)
+        assertTrue((parsed!!.faultFlags and TelemetryFrame.FAULT_BATT_INVALID) != 0)
+        org.junit.Assert.assertFalse(parsed.isBatteryValid)
+        assertNull(parsed.batteryVolts)
+        assertNull(parsed.batteryPercentage)
+    }
 }

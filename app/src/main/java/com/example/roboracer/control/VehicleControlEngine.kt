@@ -91,6 +91,22 @@ class VehicleControlEngine(
         _isEmergencyStopped.value = false
         _rawTouchInput.value = RawTouchInput()
         interlock.reset()
+        // Intentional safe re-arm: require physical release of all touch zones to neutral
+        reconnectNeutralLatched = true
+    }
+
+    /**
+     * Immediately clears all active touch inputs, resets interlocks, latches neutral release requirement,
+     * and dispatches a zero-motion stop command. Invoked on app backgrounding (ON_PAUSE / ON_STOP).
+     */
+    fun neutralize() {
+        _rawTouchInput.value = RawTouchInput()
+        interlock.reset()
+        reconnectNeutralLatched = true
+        val stopCmd = CommandFrame.emergencyStop(sequenceNumber++ and 0xFF)
+        transport.sendCommand(stopCmd)
+        _lastSentCommand.value = stopCmd
+        _resolvedControl.value = ResolvedControl(0f, 0f, isBrakeEngaged = true, isReverseReady = false)
     }
 
     fun updateSteering(left: Boolean, right: Boolean) {
@@ -121,7 +137,7 @@ class VehicleControlEngine(
 
         var currentInput = _rawTouchInput.value
 
-        // Reconnection neutral latch enforcement:
+        // Reconnection / Re-arm neutral latch enforcement:
         // Must observe an all-neutral (untouched) state before allowing any active drive command.
         if (reconnectNeutralLatched) {
             if (!currentInput.isAccelPressed && !currentInput.isBrakePressed &&
@@ -135,14 +151,8 @@ class VehicleControlEngine(
             }
         }
 
-        val latestTelemetry = transport.telemetryFlow.value
-        val currentSpeed = maxOf(
-            latestTelemetry?.leftActualSpeed ?: 0,
-            latestTelemetry?.rightActualSpeed ?: 0
-        )
-
-        // 1. Resolve inputs with safety interlock
-        val resolved = interlock.resolve(currentInput, currentSpeed)
+        // 1. Resolve inputs with safety interlock (pure timer-based settling dwell)
+        val resolved = interlock.resolve(currentInput)
         _resolvedControl.value = resolved
 
         // 2. Mix to motor command

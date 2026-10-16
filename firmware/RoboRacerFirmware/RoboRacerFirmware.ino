@@ -51,8 +51,22 @@
 #define TELEMETRY_INTERVAL_MS 50
 #define MAX_DUTY_CYCLE_REV   160
 #define MIN_START_DUTY        45
-
 #define REVERSE_DWELL_MS     500
+
+// Battery Monitoring & Multimeter Calibration
+// To calibrate: measure pack voltage (V_pack) and GPIO 34 pin voltage (V_pin) with digital multimeter.
+// Enter ratio V_pack / V_pin into BATT_DIVIDER_RATIO and set BATT_CALIBRATION_CONFIRMED to 1.
+#define BATT_CALIBRATION_CONFIRMED 0
+#define BATT_DIVIDER_RATIO        6.0f
+#define BATT_MIN_PLAUSIBLE_MV     6000
+#define BATT_MAX_PLAUSIBLE_MV     13500
+#define BATT_LOW_VOLTAGE_MV       9600
+
+#define FAULT_WATCHDOG_TIMEOUT (1 << 0)
+#define FAULT_LOW_BATTERY      (1 << 1)
+#define FAULT_CRC_ERROR        (1 << 2)
+#define FAULT_MOTOR_STALL      (1 << 3)
+#define FAULT_BATT_INVALID     (1 << 4)
 
 #define PROTOCOL_START_BYTE 0xAA
 #define PROTOCOL_END_BYTE   0x55
@@ -81,6 +95,8 @@ uint8_t cur_left_speed = 0, cur_left_dir = DIR_STOP;
 uint8_t cur_right_speed = 0, cur_right_dir = DIR_STOP;
 uint8_t tgt_left_speed = 0, tgt_left_dir = DIR_STOP;
 uint8_t tgt_right_speed = 0, tgt_right_dir = DIR_STOP;
+uint8_t last_powered_dir_left = DIR_STOP;
+uint8_t last_powered_dir_right = DIR_STOP;
 
 // CRC-8 Lookup Table (Poly 0x07)
 static const uint8_t crc8_table[256] = {
@@ -145,12 +161,17 @@ void set_hw_right(uint8_t spd, uint8_t dir) {
 }
 
 void stop_all_motors() {
+    unsigned long now = millis();
     tgt_left_speed = cur_left_speed = 0;
     tgt_right_speed = cur_right_speed = 0;
     tgt_left_dir = cur_left_dir = DIR_STOP;
     tgt_right_dir = cur_right_dir = DIR_STOP;
-    left_dwell_start = 0;
-    right_dwell_start = 0;
+    if (last_powered_dir_left != DIR_STOP && left_dwell_start == 0) {
+        left_dwell_start = now;
+    }
+    if (last_powered_dir_right != DIR_STOP && right_dwell_start == 0) {
+        right_dwell_start = now;
+    }
     set_hw_left(0, DIR_STOP);
     set_hw_right(0, DIR_STOP);
 }
@@ -159,10 +180,12 @@ void bt_event_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param) {
     if (event == ESP_SPP_SRV_OPEN_EVT) {
         bt_connected = true;
         first_cmd = true;
+        rx_idx = 0;
         last_cmd_time = millis();
     } else if (event == ESP_SPP_CLOSE_EVT) {
         bt_connected = false;
         first_cmd = true;
+        rx_idx = 0;
         last_cmd_time = 0;
         stop_all_motors();
     }
@@ -217,7 +240,8 @@ void loop() {
                             last_cmd_seq = seq;
                             is_fresh = true;
                         } else {
-                            uint8_t diff = seq - last_cmd_seq;
+                            // Explicit uint8_t modulo arithmetic handles 255 -> 0 wraparound correctly
+                            uint8_t diff = (uint8_t)(seq - last_cmd_seq);
                             if (diff > 0 && diff < 128) {
                                 last_cmd_seq = seq;
                                 is_fresh = true;
@@ -232,16 +256,38 @@ void loop() {
                             tgt_right_dir   = rx_buf[7];
                             if (tgt_left_dir == DIR_REV && tgt_left_speed > MAX_DUTY_CYCLE_REV) tgt_left_speed = MAX_DUTY_CYCLE_REV;
                             if (tgt_right_dir == DIR_REV && tgt_right_speed > MAX_DUTY_CYCLE_REV) tgt_right_speed = MAX_DUTY_CYCLE_REV;
+
+                            // Left motor stop / direction reversal check
                             if (tgt_left_dir == DIR_STOP || tgt_left_speed == 0) {
                                 cur_left_speed = 0;
                                 cur_left_dir = DIR_STOP;
-                                left_dwell_start = 0;
+                                if (last_powered_dir_left != DIR_STOP && left_dwell_start == 0) {
+                                    left_dwell_start = now;
+                                }
+                                set_hw_left(0, DIR_STOP);
+                            } else if (last_powered_dir_left != DIR_STOP && tgt_left_dir != last_powered_dir_left) {
+                                cur_left_speed = 0;
+                                cur_left_dir = DIR_STOP;
+                                if (left_dwell_start == 0) {
+                                    left_dwell_start = now;
+                                }
                                 set_hw_left(0, DIR_STOP);
                             }
+
+                            // Right motor stop / direction reversal check
                             if (tgt_right_dir == DIR_STOP || tgt_right_speed == 0) {
                                 cur_right_speed = 0;
                                 cur_right_dir = DIR_STOP;
-                                right_dwell_start = 0;
+                                if (last_powered_dir_right != DIR_STOP && right_dwell_start == 0) {
+                                    right_dwell_start = now;
+                                }
+                                set_hw_right(0, DIR_STOP);
+                            } else if (last_powered_dir_right != DIR_STOP && tgt_right_dir != last_powered_dir_right) {
+                                cur_right_speed = 0;
+                                cur_right_dir = DIR_STOP;
+                                if (right_dwell_start == 0) {
+                                    right_dwell_start = now;
+                                }
                                 set_hw_right(0, DIR_STOP);
                             }
                         }
@@ -260,19 +306,22 @@ void loop() {
             last_ramp_time = now;
 
             // Left motor dwell and ramp
-            if (cur_left_dir != tgt_left_dir) {
-                if (cur_left_speed > 15) {
-                    cur_left_speed -= 15;
+            if (tgt_left_dir == DIR_STOP || tgt_left_speed == 0) {
+                cur_left_speed = 0;
+                cur_left_dir = DIR_STOP;
+                set_hw_left(0, DIR_STOP);
+            } else if (last_powered_dir_left != DIR_STOP && tgt_left_dir != last_powered_dir_left) {
+                cur_left_speed = 0;
+                cur_left_dir = DIR_STOP;
+                set_hw_left(0, DIR_STOP);
+                if (left_dwell_start == 0) left_dwell_start = now;
+                if (now - left_dwell_start >= REVERSE_DWELL_MS) {
+                    cur_left_dir = tgt_left_dir;
+                    last_powered_dir_left = tgt_left_dir;
                     left_dwell_start = 0;
-                } else {
-                    cur_left_speed = 0;
-                    if (left_dwell_start == 0) left_dwell_start = now;
-                    if (now - left_dwell_start >= REVERSE_DWELL_MS) {
-                        cur_left_dir = tgt_left_dir;
-                        left_dwell_start = 0;
-                    }
                 }
             } else {
+                cur_left_dir = tgt_left_dir;
                 left_dwell_start = 0;
                 if (cur_left_speed < tgt_left_speed) {
                     uint16_t next = cur_left_speed + 12;
@@ -281,23 +330,27 @@ void loop() {
                     uint16_t next = (cur_left_speed > 20) ? (cur_left_speed - 20) : 0;
                     cur_left_speed = (next < tgt_left_speed) ? tgt_left_speed : next;
                 }
+                if (cur_left_speed > 0) last_powered_dir_left = cur_left_dir;
+                set_hw_left(cur_left_speed, cur_left_dir);
             }
-            set_hw_left(cur_left_speed, cur_left_dir);
 
             // Right motor dwell and ramp
-            if (cur_right_dir != tgt_right_dir) {
-                if (cur_right_speed > 15) {
-                    cur_right_speed -= 15;
+            if (tgt_right_dir == DIR_STOP || tgt_right_speed == 0) {
+                cur_right_speed = 0;
+                cur_right_dir = DIR_STOP;
+                set_hw_right(0, DIR_STOP);
+            } else if (last_powered_dir_right != DIR_STOP && tgt_right_dir != last_powered_dir_right) {
+                cur_right_speed = 0;
+                cur_right_dir = DIR_STOP;
+                set_hw_right(0, DIR_STOP);
+                if (right_dwell_start == 0) right_dwell_start = now;
+                if (now - right_dwell_start >= REVERSE_DWELL_MS) {
+                    cur_right_dir = tgt_right_dir;
+                    last_powered_dir_right = tgt_right_dir;
                     right_dwell_start = 0;
-                } else {
-                    cur_right_speed = 0;
-                    if (right_dwell_start == 0) right_dwell_start = now;
-                    if (now - right_dwell_start >= REVERSE_DWELL_MS) {
-                        cur_right_dir = tgt_right_dir;
-                        right_dwell_start = 0;
-                    }
                 }
             } else {
+                cur_right_dir = tgt_right_dir;
                 right_dwell_start = 0;
                 if (cur_right_speed < tgt_right_speed) {
                     uint16_t next = cur_right_speed + 12;
@@ -306,8 +359,9 @@ void loop() {
                     uint16_t next = (cur_right_speed > 20) ? (cur_right_speed - 20) : 0;
                     cur_right_speed = (next < tgt_right_speed) ? tgt_right_speed : next;
                 }
+                if (cur_right_speed > 0) last_powered_dir_right = cur_right_dir;
+                set_hw_right(cur_right_speed, cur_right_dir);
             }
-            set_hw_right(cur_right_speed, cur_right_dir);
         }
     }
 
@@ -316,20 +370,37 @@ void loop() {
         last_telem_time = now;
         telem_seq++;
 
-        float adc_v = (analogRead(PIN_BATTERY_ADC) / 4095.0f) * 3.3f;
-        uint16_t batt_mv = (uint16_t)(adc_v * 6.0f * 1000.0f);
+        uint32_t raw_adc = analogRead(PIN_BATTERY_ADC);
+        bool batt_valid = false;
+        uint16_t batt_mv = 0;
+
+#if (BATT_CALIBRATION_CONFIRMED == 1)
+        if (raw_adc >= 150 && raw_adc < 4090) {
+            float adc_v = (raw_adc / 4095.0f) * 3.3f;
+            uint16_t calc_mv = (uint16_t)(adc_v * BATT_DIVIDER_RATIO * 1000.0f);
+            if (calc_mv >= BATT_MIN_PLAUSIBLE_MV && calc_mv <= BATT_MAX_PLAUSIBLE_MV) {
+                batt_valid = true;
+                batt_mv = calc_mv;
+            }
+        }
+#endif
+
+        uint8_t fault_flags = 0;
+        if (timeout) fault_flags |= FAULT_WATCHDOG_TIMEOUT;
+        if (!batt_valid) fault_flags |= FAULT_BATT_INVALID;
+        else if (batt_mv < BATT_LOW_VOLTAGE_MV) fault_flags |= FAULT_LOW_BATTERY;
 
         uint8_t tx[13];
         tx[0] = PROTOCOL_START_BYTE;
         tx[1] = PROTOCOL_VERSION;
         tx[2] = MSG_TYPE_TELEMETRY;
         tx[3] = 0x07;
-        tx[4] = timeout ? STATE_FAILSAFE : ((cur_left_speed > 0 || cur_right_speed > 0) ? STATE_RUNNING : STATE_IDLE);
+        tx[4] = timeout ? STATE_FAILSAFE : ((fault_flags & FAULT_LOW_BATTERY) ? STATE_LOW_BATT : ((cur_left_speed > 0 || cur_right_speed > 0) ? STATE_RUNNING : STATE_IDLE));
         tx[5] = cur_left_speed;
         tx[6] = cur_right_speed;
         tx[7] = (batt_mv >> 8) & 0xFF;
         tx[8] = batt_mv & 0xFF;
-        tx[9] = timeout ? 0x01 : 0x00;
+        tx[9] = fault_flags;
         tx[10] = telem_seq;
         tx[11] = calc_crc8(tx, 11);
         tx[12] = PROTOCOL_END_BYTE;

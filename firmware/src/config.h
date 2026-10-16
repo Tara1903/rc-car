@@ -54,17 +54,46 @@
 #endif
 
 // SAFETY LIMITS & TIMING
-#define WATCHDOG_TIMEOUT_MS  500  // Cut motor power if no command received for 500ms
+// Note on L298N H-Bridge Stop State:
+// When PWM duty is 0 (ENA/ENB disabled) and IN1..IN4 are LOW, the L298N outputs are in
+// High-Z "Free Running Motor Stop" (unpowered coasting). This disconnects motor drive safely
+// without thermal stress, but does NOT represent active dynamic or regenerative braking.
+#define WATCHDOG_TIMEOUT_MS  500  // Cut motor power if no fresh command received for 500ms
 #define TELEMETRY_INTERVAL_MS 50  // Send telemetry at 20 Hz
 #define MAX_DUTY_CYCLE_FWD   255  // 100% duty cycle forward
 #define MAX_DUTY_CYCLE_REV   160  // ~63% duty cycle reverse limit for mechanical stability
 #define MIN_START_DUTY        45  // Minimum deadband duty cycle to overcome TT gearbox friction
-#define REVERSE_DWELL_MS     500  // Sensorless 500ms zero-power dwell window during forward-to-reverse transitions
+#define REVERSE_DWELL_MS     500  // Zero-output electrical/mechanical settling window during direction reversal
 
-// BATTERY VOLTAGE MONITORING
-// Voltage divider: R1 = 100kΩ, R2 = 20kΩ (Ratio: 6.0:1)
-// 12.6V max input -> 2.1V at ADC pin (well inside ESP32 0-3.3V range)
-#define BATT_DIVIDER_RATIO  6.0f
-#define BATT_ADC_VREF       3.3f
-#define BATT_ADC_MAX        4095.0f
-#define BATT_LOW_VOLTAGE_MV 9600  // 9.6V (3.2V/cell for 3S Li-ion) -> Trigger low batt fault
+// ============================================================================
+// BATTERY VOLTAGE MONITORING & MULTIMETER CALIBRATION
+// Default Battery Chemistry: 3S Li-ion (11.1V nominal, 12.6V max, 9.6V cutoff)
+// Voltage divider: R1 = 100kΩ, R2 = 20kΩ (Nominal Ratio: (100k + 20k) / 20k = 6.0:1)
+// 12.6V max input -> ~2.10V at ADC pin (well inside ESP32 0 - 3.3V range)
+//
+// PHYSICAL MULTIMETER CALIBRATION PROCEDURE:
+// 1. Measure the battery terminal voltage directly with a calibrated digital multimeter:
+//    Record as V_pack (e.g. 11.85 V).
+// 2. Measure the voltage present between ESP32 pin GPIO 34 and GND:
+//    Record as V_adc_pin (e.g. 1.975 V).
+// 3. Calculate true divider ratio: RATIO = V_pack / V_adc_pin (e.g. 11.85 / 1.975 = 6.000).
+// 4. Enter the computed ratio into BATT_DIVIDER_RATIO below.
+// 5. Change BATT_CALIBRATION_CONFIRMED from 0 to 1.
+//    (If set to 0, telemetry explicitly flags battery data as uncalibrated/invalid).
+// ============================================================================
+#define BATT_CALIBRATION_CONFIRMED 0    // Set to 1 ONLY after multimeter confirmation
+#define BATT_DIVIDER_RATIO        6.0f  // Multimeter measured ratio: V_battery / V_adc_pin
+#define BATT_ADC_VREF             3.3f
+#define BATT_ADC_MAX              4095.0f
+
+// Battery Cell Parameters (3S Li-ion)
+#define BATT_CELLS                3
+#define BATT_CELL_MAX_MV          4200  // 4.2V per cell -> 12600 mV full charge
+#define BATT_CELL_NOMINAL_MV      3700  // 3.7V per cell -> 11100 mV nominal
+#define BATT_CELL_CUTOFF_MV       3200  // 3.2V per cell -> 9600 mV low-voltage cutoff threshold
+#define BATT_MAX_VOLTAGE_MV       (BATT_CELLS * BATT_CELL_MAX_MV)
+#define BATT_LOW_VOLTAGE_MV       (BATT_CELLS * BATT_CELL_CUTOFF_MV)
+
+// Physical Sanity Limits for 3S Pack
+#define BATT_MIN_PLAUSIBLE_MV     6000  // Readings < 6.0V indicate disconnected divider / floating pin
+#define BATT_MAX_PLAUSIBLE_MV     13500 // Readings > 13.5V indicate incorrect divider or overvoltage

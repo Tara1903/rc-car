@@ -29,10 +29,11 @@ enum SystemState : uint8_t {
 };
 
 // Fault Bitmask Flags
-#define FAULT_WATCHDOG_TIMEOUT (1 << 0)
-#define FAULT_LOW_BATTERY      (1 << 1)
-#define FAULT_CRC_ERROR        (1 << 2)
-#define FAULT_MOTOR_STALL      (1 << 3)
+#define FAULT_WATCHDOG_TIMEOUT (1 << 0) // Watchdog timer expired
+#define FAULT_LOW_BATTERY      (1 << 1) // Battery voltage below cutoff
+#define FAULT_CRC_ERROR        (1 << 2) // Checksum verification failure
+#define FAULT_MOTOR_STALL      (1 << 3) // Reserved for current/stall monitor
+#define FAULT_BATT_INVALID     (1 << 4) // Battery uncalibrated, disconnected, or out of range
 
 struct MotorCommand {
     uint8_t left_speed;

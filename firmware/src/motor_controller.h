@@ -13,6 +13,10 @@ public:
 
     uint8_t get_left_actual_speed() const { return current_left_speed; }
     uint8_t get_right_actual_speed() const { return current_right_speed; }
+    uint8_t get_left_actual_dir() const { return current_left_dir; }
+    uint8_t get_right_actual_dir() const { return current_right_dir; }
+    bool is_left_dwelling() const { return left_dwell_start != 0; }
+    bool is_right_dwelling() const { return right_dwell_start != 0; }
 
 private:
     void set_hardware_left(uint8_t speed, uint8_t dir);
@@ -27,6 +31,9 @@ private:
     uint8_t current_left_dir;
     uint8_t current_right_speed;
     uint8_t current_right_dir;
+
+    uint8_t last_powered_dir_left;
+    uint8_t last_powered_dir_right;
 
     unsigned long last_ramp_time;
     unsigned long left_dwell_start;

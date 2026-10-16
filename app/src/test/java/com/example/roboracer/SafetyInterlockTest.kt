@@ -158,10 +158,53 @@ class SafetyInterlockTest {
         assertEquals(0, engine.lastSentCommand.value.leftSpeed)
         assertEquals(0, engine.lastSentCommand.value.rightSpeed)
 
-        // 4. Reset emergency stop unlatches
+        // 4. Reset emergency stop unlatches, but requires release to neutral before accepting fresh motion
         engine.resetEmergencyStop()
         assertFalse(engine.isEmergencyStopped.value)
+
+        // Touching while still holding does not move motors
+        engine.updateDrive(accel = true, brake = false)
+        testScheduler.advanceTimeBy(100)
+        assertEquals(0, engine.lastSentCommand.value.leftSpeed)
+        assertEquals(0, engine.lastSentCommand.value.rightSpeed)
+
+        // Release to neutral unlatches
+        engine.updateDrive(accel = false, brake = false)
+        testScheduler.advanceTimeBy(100)
+
+        // Now fresh touch moves
+        engine.updateDrive(accel = true, brake = false)
+        testScheduler.advanceTimeBy(100)
+        assertTrue(engine.lastSentCommand.value.leftSpeed > 0)
+
         engine.stop()
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun testAppBackgroundingNeutralization() = kotlinx.coroutines.test.runTest {
+        val mockTransport = com.example.roboracer.bluetooth.MockVehicleTransport(this)
+        val dispatcher = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler)
+        val engine = com.example.roboracer.control.VehicleControlEngine(mockTransport, this, dispatcher)
+        engine.start()
+        mockTransport.connect("00:11:22:33:44:55", "TEST-ESP32")
+        testScheduler.advanceTimeBy(500)
+
+        // Drive active
+        engine.updateDrive(accel = true, brake = false)
+        testScheduler.advanceTimeBy(100)
+        assertTrue(engine.lastSentCommand.value.leftSpeed > 0)
+
+        // App placed in background -> neutralize()
+        engine.neutralize()
+        testScheduler.advanceTimeBy(100)
+
+        // Motors must be stopped and latched neutral
+        assertEquals(com.example.roboracer.bluetooth.protocol.MotorDir.STOP, engine.lastSentCommand.value.leftDir)
+        assertEquals(0, engine.lastSentCommand.value.leftSpeed)
+
+        engine.stop()
+        mockTransport.disconnect()
     }
 
     @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)

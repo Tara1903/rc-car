@@ -12,11 +12,18 @@ class SafetyInterlock(
      * Enforces:
      * 1. Brake overrides Accelerate (Brake priority).
      * 2. Left + Right steering cancellation (Neutral).
-     * 3. Forward-to-Reverse interlock delay (500ms zero-speed window).
+     * 3. Forward-to-Reverse interlock delay (500ms zero-throttle electrical settling window).
+     *
+     * Note on Physical Ground Speed:
+     * In an open-loop 4WD robot without physical wheel encoders or tachometers,
+     * telemetry actual_speed reflects commanded PWM duty cycle, not ground speed.
+     * The 500ms dwell window provides an electrical and mechanical settling period
+     * to prevent instantaneous H-bridge polarity inversion, but does NOT represent
+     * proof that the physical vehicle has achieved zero ground velocity.
      */
     fun resolve(
         input: RawTouchInput,
-        currentSpeed: Int,
+        currentSpeed: Int = 0,
         currentTimeMs: Long = System.currentTimeMillis()
     ): ResolvedControl {
         // 1. Steering Conflict Resolution
@@ -40,12 +47,13 @@ class SafetyInterlock(
             isPreviouslyMovingForward = true
             zeroSpeedStartTime = 0L
         } else if (isBraking) {
-            if (isPreviouslyMovingForward && currentSpeed > 10) {
-                // Active braking state: do not engage reverse while car has forward momentum
-                throttle = 0.0f
+            if (currentSpeed > 0) {
+                isPreviouslyMovingForward = true
                 zeroSpeedStartTime = 0L
-            } else {
-                // Vehicle is stopped or transitioning to reverse
+                throttle = 0.0f
+                reverseReady = false
+            } else if (isPreviouslyMovingForward) {
+                // Car has reached zero speed; enforce electrical/mechanical dwell window
                 if (zeroSpeedStartTime == 0L) {
                     zeroSpeedStartTime = currentTimeMs
                 }
@@ -57,17 +65,22 @@ class SafetyInterlock(
                     reverseReady = true
                     isPreviouslyMovingForward = false
                 } else {
-                    // Holding at zero speed for interlock delay
+                    // Holding at zero throttle during electrical settling window
                     throttle = 0.0f
+                    reverseReady = false
                 }
+            } else {
+                // Not previously moving forward (starting from neutral or continuing reverse)
+                throttle = -maxReverseSpeedRatio
+                reverseReady = true
             }
         } else {
-            // Idle / Coasting
+            // Idle / Coasting (no pedals pressed)
             throttle = 0.0f
             if (currentSpeed == 0) {
                 isPreviouslyMovingForward = false
-                zeroSpeedStartTime = 0L
             }
+            zeroSpeedStartTime = 0L
         }
 
         return ResolvedControl(

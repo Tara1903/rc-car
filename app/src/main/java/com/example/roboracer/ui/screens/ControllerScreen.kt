@@ -39,6 +39,21 @@ fun ControllerScreen(
     val isSimulatorMode by viewModel.isSimulatorMode.collectAsState()
     val isEmergencyStopped by viewModel.isEmergencyStopped.collectAsState()
 
+    // Safety Interlock: When the application is backgrounded (ON_PAUSE / ON_STOP),
+    // immediately clear all active touch inputs, reset interlocks, and dispatch a stop command.
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    androidx.compose.runtime.DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_PAUSE || event == androidx.lifecycle.Lifecycle.Event.ON_STOP) {
+                viewModel.neutralize()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose {
+            lifecycleOwner.lifecycle.removeObserver(observer)
+        }
+    }
+
     Box(
         modifier = Modifier
             .fillMaxSize()

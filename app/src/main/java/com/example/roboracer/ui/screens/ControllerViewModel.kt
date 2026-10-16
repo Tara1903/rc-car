@@ -123,6 +123,10 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
         controlEngine.resetEmergencyStop()
     }
 
+    fun neutralize() {
+        controlEngine.neutralize()
+    }
+
     override fun onCleared() {
         super.onCleared()
         controlEngine.stop()

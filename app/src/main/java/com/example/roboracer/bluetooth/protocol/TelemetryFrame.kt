@@ -26,20 +26,27 @@ data class TelemetryFrame(
     val isSimulated: Boolean = false,
     val hasPhysicalSpeedSensor: Boolean = false
 ) {
-    // Battery voltage in Volts. Returns null if reading < 3000 mV (unconnected or uncalibrated ADC)
-    val batteryVolts: Float?
-        get() = if (batteryMilliVolts >= 3000) batteryMilliVolts / 1000.0f else null
+    val isFailsafe: Boolean get() = (faultFlags and FAULT_WATCHDOG_TIMEOUT) != 0 || state == SystemState.FAILSAFE
+    val isLowBattery: Boolean get() = (faultFlags and FAULT_LOW_BATTERY) != 0 || state == SystemState.LOW_BATTERY
+    val isBatteryInvalid: Boolean get() = (faultFlags and FAULT_BATT_INVALID) != 0 || batteryMilliVolts < 6000 || batteryMilliVolts > 13500
+    val isBatteryValid: Boolean get() = !isBatteryInvalid
 
-    val isFailsafe: Boolean get() = (faultFlags and 0x01) != 0 || state == SystemState.FAILSAFE
-    val isLowBattery: Boolean get() = (faultFlags and 0x02) != 0 || state == SystemState.LOW_BATTERY
+    // Battery voltage in Volts. Returns null if reading is uncalibrated, disconnected, or out of range.
+    val batteryVolts: Float?
+        get() = if (isBatteryValid) batteryMilliVolts / 1000.0f else null
 
     // Battery percentage estimate for 3S Li-ion (9.6V empty to 12.6V full).
-    // Returns null if uncalibrated or disconnected (< 3000 mV).
+    // Returns null if uncalibrated, disconnected, or invalid.
     val batteryPercentage: Int?
-        get() = if (batteryMilliVolts >= 3000) {
-            val pct = ((batteryMilliVolts - 9600) * 100) / (12600 - 9600)
-            pct.coerceIn(0, 100)
-        } else null
+        get() = when {
+            !isBatteryValid -> null
+            batteryMilliVolts >= 12600 -> 100
+            batteryMilliVolts <= 9600 -> 0
+            else -> {
+                val pct = ((batteryMilliVolts - 9600) * 100) / (12600 - 9600)
+                pct.coerceIn(0, 100)
+            }
+        }
 
     // Speed in km/h. On real hardware without a physical wheel encoder / tachometer,
     // this returns null (rendered as "-- KM/H") to avoid displaying invented PWM-derived speed.
@@ -64,6 +71,13 @@ data class TelemetryFrame(
         const val MSG_TYPE_TELEMETRY: Byte = 0x10.toByte()
         const val PAYLOAD_LENGTH: Byte = 0x07.toByte()
         const val FRAME_SIZE = 13
+
+        // Fault Bitmask Constants
+        const val FAULT_WATCHDOG_TIMEOUT = 0x01
+        const val FAULT_LOW_BATTERY = 0x02
+        const val FAULT_CRC_ERROR = 0x04
+        const val FAULT_MOTOR_STALL = 0x08
+        const val FAULT_BATT_INVALID = 0x10
 
         fun parse(data: ByteArray, offset: Int = 0): TelemetryFrame? {
             if (data.size - offset < FRAME_SIZE) return null
