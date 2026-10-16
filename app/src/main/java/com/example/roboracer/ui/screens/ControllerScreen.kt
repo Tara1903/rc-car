@@ -37,6 +37,7 @@ fun ControllerScreen(
 
     val isSettingsOpen by viewModel.isSettingsOpen.collectAsState()
     val isSimulatorMode by viewModel.isSimulatorMode.collectAsState()
+    val isEmergencyStopped by viewModel.isEmergencyStopped.collectAsState()
 
     Box(
         modifier = Modifier
@@ -51,6 +52,9 @@ fun ControllerScreen(
                 deviceName = activeDeviceName,
                 latencyMs = latencyMs,
                 telemetry = telemetry,
+                isEmergencyStopped = isEmergencyStopped,
+                onEmergencyStop = { viewModel.emergencyStop() },
+                onResetEmergencyStop = { viewModel.resetEmergencyStop() },
                 onSettingsClick = { viewModel.openSettings() },
                 onMenuClick = { viewModel.openSettings() }
             )

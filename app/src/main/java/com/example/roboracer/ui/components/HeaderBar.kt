@@ -51,6 +51,9 @@ fun HeaderBar(
     deviceName: String?,
     latencyMs: Long,
     telemetry: TelemetryFrame?,
+    isEmergencyStopped: Boolean = false,
+    onEmergencyStop: () -> Unit = {},
+    onResetEmergencyStop: () -> Unit = {},
     onSettingsClick: () -> Unit,
     onMenuClick: () -> Unit,
     modifier: Modifier = Modifier
@@ -133,65 +136,125 @@ fun HeaderBar(
             }
         }
 
-        // CENTER: Bluetooth Connection Pill
-        val statusColor = when (connectionStatus) {
-            ConnectionStatus.CONNECTED -> AccentGreen
-            ConnectionStatus.CONNECTING -> NeonYellow
-            ConnectionStatus.ERROR -> AccentRed
-            ConnectionStatus.DISCONNECTED -> TextMuted
-        }
-
-        Box(
-            modifier = Modifier
-                .cyberpunkBorder(
-                    borderColor = statusColor.copy(alpha = 0.8f),
-                    glowColor = statusColor.copy(alpha = 0.35f),
-                    glowRadius = 6.dp,
-                    cornerCut = 8.dp
-                )
-                .clickable(onClick = onSettingsClick)
-                .padding(horizontal = 14.dp, vertical = 6.dp),
-            contentAlignment = Alignment.Center
+        // CENTER: Bluetooth Connection Pill & Emergency Stop
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp)
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp)
+            val statusColor = when (connectionStatus) {
+                ConnectionStatus.CONNECTED -> AccentGreen
+                ConnectionStatus.CONNECTING -> NeonYellow
+                ConnectionStatus.ERROR -> AccentRed
+                ConnectionStatus.DISCONNECTED -> TextMuted
+            }
+
+            Box(
+                modifier = Modifier
+                    .cyberpunkBorder(
+                        borderColor = statusColor.copy(alpha = 0.8f),
+                        glowColor = statusColor.copy(alpha = 0.35f),
+                        glowRadius = 6.dp,
+                        cornerCut = 8.dp
+                    )
+                    .clickable(onClick = onSettingsClick)
+                    .padding(horizontal = 14.dp, vertical = 6.dp),
+                contentAlignment = Alignment.Center
             ) {
-                // Pulsing indicator dot
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    // Pulsing indicator dot
+                    Box(
+                        modifier = Modifier
+                            .size(8.dp)
+                            .clip(CircleShape)
+                            .background(
+                                if (connectionStatus == ConnectionStatus.CONNECTED || connectionStatus == ConnectionStatus.CONNECTING) {
+                                    statusColor.copy(alpha = pulseAlpha)
+                                } else {
+                                    statusColor
+                                }
+                            )
+                    )
+
+                    Text(
+                        text = when (connectionStatus) {
+                            ConnectionStatus.CONNECTED -> "BT: ${deviceName ?: "ROBO-ESP32"}"
+                            ConnectionStatus.CONNECTING -> "BT CONNECTING..."
+                            ConnectionStatus.ERROR -> "BT LINK LOST"
+                            ConnectionStatus.DISCONNECTED -> "DISCONNECTED"
+                        },
+                        fontFamily = FontFamily.Monospace,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 11.sp,
+                        color = statusColor
+                    )
+
+                    if (connectionStatus == ConnectionStatus.CONNECTED) {
+                        Text(
+                            text = "${latencyMs}ms",
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Normal,
+                            fontSize = 10.sp,
+                            color = AccentCyan
+                        )
+                    }
+                }
+            }
+
+            // High-Visibility Emergency Stop Button
+            if (isEmergencyStopped) {
                 Box(
                     modifier = Modifier
-                        .size(8.dp)
-                        .clip(CircleShape)
-                        .background(
-                            if (connectionStatus == ConnectionStatus.CONNECTED || connectionStatus == ConnectionStatus.CONNECTING) {
-                                statusColor.copy(alpha = pulseAlpha)
-                            } else {
-                                statusColor
-                            }
+                        .cyberpunkBorder(
+                            borderColor = AccentRed,
+                            glowColor = AccentRed.copy(alpha = pulseAlpha),
+                            glowRadius = 10.dp,
+                            cornerCut = 8.dp
                         )
-                )
-
-                Text(
-                    text = when (connectionStatus) {
-                        ConnectionStatus.CONNECTED -> "BT: ${deviceName ?: "ROBO-ESP32"}"
-                        ConnectionStatus.CONNECTING -> "BT CONNECTING..."
-                        ConnectionStatus.ERROR -> "BT LINK LOST"
-                        ConnectionStatus.DISCONNECTED -> "DISCONNECTED"
-                    },
-                    fontFamily = FontFamily.Monospace,
-                    fontWeight = FontWeight.Bold,
-                    fontSize = 11.sp,
-                    color = statusColor
-                )
-
-                if (connectionStatus == ConnectionStatus.CONNECTED) {
+                        .clickable(onClick = onResetEmergencyStop)
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
                     Text(
-                        text = "${latencyMs}ms",
+                        text = "⚠️ E-STOPPED // TAP TO RESET",
                         fontFamily = FontFamily.Monospace,
-                        fontWeight = FontWeight.Normal,
-                        fontSize = 10.sp,
-                        color = AccentCyan
+                        fontWeight = FontWeight.Black,
+                        fontSize = 11.sp,
+                        color = AccentRed
                     )
+                }
+            } else {
+                Box(
+                    modifier = Modifier
+                        .cyberpunkBorder(
+                            borderColor = AccentRed.copy(alpha = 0.7f),
+                            glowColor = AccentRed.copy(alpha = 0.3f),
+                            glowRadius = 6.dp,
+                            cornerCut = 8.dp
+                        )
+                        .clickable(onClick = onEmergencyStop)
+                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp)
+                    ) {
+                        Text(
+                            text = "🛑",
+                            fontSize = 10.sp
+                        )
+                        Text(
+                            text = "E-STOP",
+                            fontFamily = FontFamily.Monospace,
+                            fontWeight = FontWeight.Black,
+                            fontSize = 11.sp,
+                            letterSpacing = 1.sp,
+                            color = AccentRed
+                        )
+                    }
                 }
             }
         }
@@ -203,8 +266,8 @@ fun HeaderBar(
         ) {
             // Battery Status Bar - True Telemetry (no fabricated defaults when disconnected)
             val isConnected = (connectionStatus == ConnectionStatus.CONNECTED && telemetry != null)
-            val battPct = if (isConnected) telemetry?.batteryPercentage else null
-            val battVolts = if (isConnected) telemetry?.batteryVolts else null
+            val battPct = if (isConnected) telemetry.batteryPercentage else null
+            val battVolts = if (isConnected) telemetry.batteryVolts else null
             val battColor = when {
                 battPct == null -> TextMuted
                 battPct > 40 -> AccentGreen
@@ -254,7 +317,7 @@ fun HeaderBar(
             }
 
             // Speed HUD Readout
-            val speed = if (isConnected) telemetry?.speedKmh else null
+            val speed = if (isConnected) telemetry.speedKmh else null
             Box(
                 modifier = Modifier
                     .cyberpunkBorder(

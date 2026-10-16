@@ -232,6 +232,18 @@ void loop() {
                             tgt_right_dir   = rx_buf[7];
                             if (tgt_left_dir == DIR_REV && tgt_left_speed > MAX_DUTY_CYCLE_REV) tgt_left_speed = MAX_DUTY_CYCLE_REV;
                             if (tgt_right_dir == DIR_REV && tgt_right_speed > MAX_DUTY_CYCLE_REV) tgt_right_speed = MAX_DUTY_CYCLE_REV;
+                            if (tgt_left_dir == DIR_STOP || tgt_left_speed == 0) {
+                                cur_left_speed = 0;
+                                cur_left_dir = DIR_STOP;
+                                left_dwell_start = 0;
+                                set_hw_left(0, DIR_STOP);
+                            }
+                            if (tgt_right_dir == DIR_STOP || tgt_right_speed == 0) {
+                                cur_right_speed = 0;
+                                cur_right_dir = DIR_STOP;
+                                right_dwell_start = 0;
+                                set_hw_right(0, DIR_STOP);
+                            }
                         }
                     }
                 }

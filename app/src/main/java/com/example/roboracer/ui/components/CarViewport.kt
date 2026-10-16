@@ -16,6 +16,10 @@ import com.example.roboracer.bluetooth.protocol.TelemetryFrame
 import com.example.roboracer.control.ResolvedControl
 import com.example.roboracer.renderer.CarGLSurfaceRenderer
 
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
+
 /**
  * Hardware-accelerated OpenGL ES 3D Vehicle Viewport.
  * Renders the Robo Racer 4WD chassis, electronics, and 4 independent spinning wheels
@@ -29,6 +33,7 @@ fun CarViewport(
 ) {
     val renderer = remember { CarGLSurfaceRenderer() }
     val lifecycleOwner = LocalLifecycleOwner.current
+    var glSurfaceViewRef by remember { mutableStateOf<GLSurfaceView?>(null) }
 
     // Synchronize control inputs and telemetry into 3D renderer
     LaunchedEffect(resolvedControl, telemetry) {
@@ -38,8 +43,6 @@ fun CarViewport(
         renderer.leftActualSpeed = telemetry?.leftActualSpeed ?: 0
         renderer.rightActualSpeed = telemetry?.rightActualSpeed ?: 0
     }
-
-    var glSurfaceViewRef: GLSurfaceView? = null
 
     Box(modifier = modifier.fillMaxSize()) {
         AndroidView(
