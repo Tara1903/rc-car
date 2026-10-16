@@ -32,17 +32,11 @@ void MotorController::begin() {
     digitalWrite(PIN_RIGHT_IN3, LOW);
     digitalWrite(PIN_RIGHT_IN4, LOW);
 
-    // Setup LEDC PWM Channels (20kHz, 8-bit)
-    ledcSetup(PWM_CHAN_LEFT_A, PWM_FREQ_HZ, PWM_RESOLUTION);
-    ledcSetup(PWM_CHAN_LEFT_B, PWM_FREQ_HZ, PWM_RESOLUTION);
-    ledcSetup(PWM_CHAN_RIGHT_A, PWM_FREQ_HZ, PWM_RESOLUTION);
-    ledcSetup(PWM_CHAN_RIGHT_B, PWM_FREQ_HZ, PWM_RESOLUTION);
-
-    // Attach PWM channels to Enable pins
-    ledcAttachPin(PIN_LEFT_ENA, PWM_CHAN_LEFT_A);
-    ledcAttachPin(PIN_LEFT_ENB, PWM_CHAN_LEFT_B);
-    ledcAttachPin(PIN_RIGHT_ENA, PWM_CHAN_RIGHT_A);
-    ledcAttachPin(PIN_RIGHT_ENB, PWM_CHAN_RIGHT_B);
+    // Setup LEDC PWM Channels & Pins (20kHz, 8-bit)
+    PWM_LEDC_ATTACH(PIN_LEFT_ENA, PWM_CHAN_LEFT_A, PWM_FREQ_HZ, PWM_RESOLUTION);
+    PWM_LEDC_ATTACH(PIN_LEFT_ENB, PWM_CHAN_LEFT_B, PWM_FREQ_HZ, PWM_RESOLUTION);
+    PWM_LEDC_ATTACH(PIN_RIGHT_ENA, PWM_CHAN_RIGHT_A, PWM_FREQ_HZ, PWM_RESOLUTION);
+    PWM_LEDC_ATTACH(PIN_RIGHT_ENB, PWM_CHAN_RIGHT_B, PWM_FREQ_HZ, PWM_RESOLUTION);
 
     emergency_stop();
 }
@@ -62,10 +56,10 @@ void MotorController::emergency_stop() {
     right_dwell_start = 0;
 
     // Immediately cut all PWM duty cycles to 0
-    ledcWrite(PWM_CHAN_LEFT_A, 0);
-    ledcWrite(PWM_CHAN_LEFT_B, 0);
-    ledcWrite(PWM_CHAN_RIGHT_A, 0);
-    ledcWrite(PWM_CHAN_RIGHT_B, 0);
+    PWM_LEDC_WRITE(PIN_LEFT_ENA, PWM_CHAN_LEFT_A, 0);
+    PWM_LEDC_WRITE(PIN_LEFT_ENB, PWM_CHAN_LEFT_B, 0);
+    PWM_LEDC_WRITE(PIN_RIGHT_ENA, PWM_CHAN_RIGHT_A, 0);
+    PWM_LEDC_WRITE(PIN_RIGHT_ENB, PWM_CHAN_RIGHT_B, 0);
 
     // Active electric brake (LOW/LOW on H-bridge inputs)
     digitalWrite(PIN_LEFT_IN1, LOW);
@@ -177,8 +171,8 @@ void MotorController::update_ramp() {
 
 void MotorController::set_hardware_left(uint8_t speed, uint8_t dir) {
     if (speed < MIN_START_DUTY || dir == DIR_STOP) {
-        ledcWrite(PWM_CHAN_LEFT_A, 0);
-        ledcWrite(PWM_CHAN_LEFT_B, 0);
+        PWM_LEDC_WRITE(PIN_LEFT_ENA, PWM_CHAN_LEFT_A, 0);
+        PWM_LEDC_WRITE(PIN_LEFT_ENB, PWM_CHAN_LEFT_B, 0);
         digitalWrite(PIN_LEFT_IN1, LOW);
         digitalWrite(PIN_LEFT_IN2, LOW);
         digitalWrite(PIN_LEFT_IN3, LOW);
@@ -200,14 +194,14 @@ void MotorController::set_hardware_left(uint8_t speed, uint8_t dir) {
         digitalWrite(PIN_LEFT_IN4, HIGH);
     }
 
-    ledcWrite(PWM_CHAN_LEFT_A, speed);
-    ledcWrite(PWM_CHAN_LEFT_B, speed);
+    PWM_LEDC_WRITE(PIN_LEFT_ENA, PWM_CHAN_LEFT_A, speed);
+    PWM_LEDC_WRITE(PIN_LEFT_ENB, PWM_CHAN_LEFT_B, speed);
 }
 
 void MotorController::set_hardware_right(uint8_t speed, uint8_t dir) {
     if (speed < MIN_START_DUTY || dir == DIR_STOP) {
-        ledcWrite(PWM_CHAN_RIGHT_A, 0);
-        ledcWrite(PWM_CHAN_RIGHT_B, 0);
+        PWM_LEDC_WRITE(PIN_RIGHT_ENA, PWM_CHAN_RIGHT_A, 0);
+        PWM_LEDC_WRITE(PIN_RIGHT_ENB, PWM_CHAN_RIGHT_B, 0);
         digitalWrite(PIN_RIGHT_IN1, LOW);
         digitalWrite(PIN_RIGHT_IN2, LOW);
         digitalWrite(PIN_RIGHT_IN3, LOW);
@@ -229,6 +223,6 @@ void MotorController::set_hardware_right(uint8_t speed, uint8_t dir) {
         digitalWrite(PIN_RIGHT_IN4, HIGH);
     }
 
-    ledcWrite(PWM_CHAN_RIGHT_A, speed);
-    ledcWrite(PWM_CHAN_RIGHT_B, speed);
+    PWM_LEDC_WRITE(PIN_RIGHT_ENA, PWM_CHAN_RIGHT_A, speed);
+    PWM_LEDC_WRITE(PIN_RIGHT_ENB, PWM_CHAN_RIGHT_B, speed);
 }

@@ -22,24 +22,39 @@ data class TelemetryFrame(
     val rightActualSpeed: Int,
     val batteryMilliVolts: Int,
     val faultFlags: Int,
-    val fwCounter: Int
+    val fwCounter: Int,
+    val isSimulated: Boolean = false,
+    val hasPhysicalSpeedSensor: Boolean = false
 ) {
-    val batteryVolts: Float get() = batteryMilliVolts / 1000.0f
+    // Battery voltage in Volts. Returns null if reading < 3000 mV (unconnected or uncalibrated ADC)
+    val batteryVolts: Float?
+        get() = if (batteryMilliVolts >= 3000) batteryMilliVolts / 1000.0f else null
+
     val isFailsafe: Boolean get() = (faultFlags and 0x01) != 0 || state == SystemState.FAILSAFE
     val isLowBattery: Boolean get() = (faultFlags and 0x02) != 0 || state == SystemState.LOW_BATTERY
 
-    // Battery percentage estimate for 3S Li-ion (9.6V empty to 12.6V full)
-    val batteryPercentage: Int
-        get() {
+    // Battery percentage estimate for 3S Li-ion (9.6V empty to 12.6V full).
+    // Returns null if uncalibrated or disconnected (< 3000 mV).
+    val batteryPercentage: Int?
+        get() = if (batteryMilliVolts >= 3000) {
             val pct = ((batteryMilliVolts - 9600) * 100) / (12600 - 9600)
-            return pct.coerceIn(0, 100)
-        }
+            pct.coerceIn(0, 100)
+        } else null
 
-    // Equivalent scale speed in km/h (based on TT motor ~200 RPM at 6V with 66mm diameter wheel ~ 2.5 km/h actual, 1:10 scale ~ 25 km/h)
-    val speedKmh: Int
-        get() {
-            val maxPwm = maxOf(leftActualSpeed, rightActualSpeed)
-            return ((maxPwm * 35) / 255) // Scales 0 - 35 km/h for HUD realism
+    // Speed in km/h. On real hardware without a physical wheel encoder / tachometer,
+    // this returns null (rendered as "-- KM/H") to avoid displaying invented PWM-derived speed.
+    // In simulator mode, simulated ground speed is displayed for UI demonstration.
+    val speedKmh: Int?
+        get() = when {
+            hasPhysicalSpeedSensor -> {
+                // Reserved for physical optical/Hall-effect tachometer integration
+                null
+            }
+            isSimulated -> {
+                val maxPwm = maxOf(leftActualSpeed, rightActualSpeed)
+                ((maxPwm * 35) / 255)
+            }
+            else -> null
         }
 
     companion object {

@@ -39,6 +39,8 @@ fun CarViewport(
         renderer.rightActualSpeed = telemetry?.rightActualSpeed ?: 0
     }
 
+    var glSurfaceViewRef: GLSurfaceView? = null
+
     Box(modifier = modifier.fillMaxSize()) {
         AndroidView(
             factory = { context ->
@@ -46,10 +48,12 @@ fun CarViewport(
                     setEGLContextClientVersion(2)
                     setRenderer(renderer)
                     renderMode = GLSurfaceView.RENDERMODE_CONTINUOUSLY
+                    glSurfaceViewRef = this
                 }
             },
             modifier = Modifier.fillMaxSize(),
             update = { glSurfaceView ->
+                glSurfaceViewRef = glSurfaceView
                 renderer.throttle = resolvedControl.normalizedThrottle
                 renderer.steering = resolvedControl.normalizedSteering
                 renderer.isBraking = resolvedControl.isBrakeEngaged
@@ -60,11 +64,16 @@ fun CarViewport(
 
         DisposableEffect(lifecycleOwner) {
             val observer = LifecycleEventObserver { _, event ->
-                // GLSurfaceView manages thread safety internally
+                when (event) {
+                    Lifecycle.Event.ON_RESUME -> glSurfaceViewRef?.onResume()
+                    Lifecycle.Event.ON_PAUSE -> glSurfaceViewRef?.onPause()
+                    else -> {}
+                }
             }
             lifecycleOwner.lifecycle.addObserver(observer)
             onDispose {
                 lifecycleOwner.lifecycle.removeObserver(observer)
+                glSurfaceViewRef?.onPause()
             }
         }
     }

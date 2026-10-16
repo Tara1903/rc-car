@@ -129,4 +129,76 @@ class SafetyInterlockTest {
         // Reverse speed capped at -0.50f (50%)
         assertEquals(-0.50f, reverseEngaged.normalizedThrottle, 0.001f)
     }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun testVehicleControlEngineLatchedEmergencyStop() = kotlinx.coroutines.test.runTest {
+        val mockTransport = com.example.roboracer.bluetooth.MockVehicleTransport(this)
+        val dispatcher = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler)
+        val engine = com.example.roboracer.control.VehicleControlEngine(mockTransport, this, dispatcher)
+        engine.start()
+        testScheduler.advanceTimeBy(100)
+
+        // 1. Engage active drive
+        engine.updateDrive(accel = true, brake = false)
+        testScheduler.advanceTimeBy(100)
+
+        // 2. Trigger Latched Emergency Stop
+        engine.emergencyStop()
+        assertTrue(engine.isEmergencyStopped.value)
+        assertEquals(com.example.roboracer.bluetooth.protocol.MotorDir.STOP, engine.lastSentCommand.value.leftDir)
+        assertEquals(com.example.roboracer.bluetooth.protocol.MotorDir.STOP, engine.lastSentCommand.value.rightDir)
+        assertEquals(0, engine.lastSentCommand.value.leftSpeed)
+        assertEquals(0, engine.lastSentCommand.value.rightSpeed)
+
+        // 3. Drive commands are rejected while emergency stopped
+        engine.updateDrive(accel = true, brake = false)
+        engine.updateSteering(left = true, right = false)
+        testScheduler.advanceTimeBy(100)
+        assertEquals(0, engine.lastSentCommand.value.leftSpeed)
+        assertEquals(0, engine.lastSentCommand.value.rightSpeed)
+
+        // 4. Reset emergency stop unlatches
+        engine.resetEmergencyStop()
+        assertFalse(engine.isEmergencyStopped.value)
+        engine.stop()
+    }
+
+    @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
+    @Test
+    fun testVehicleControlEngineReconnectionStartsInNeutral() = kotlinx.coroutines.test.runTest {
+        val mockTransport = com.example.roboracer.bluetooth.MockVehicleTransport(this)
+        val dispatcher = kotlinx.coroutines.test.StandardTestDispatcher(testScheduler)
+        val engine = com.example.roboracer.control.VehicleControlEngine(mockTransport, this, dispatcher)
+        engine.start()
+        mockTransport.connect("00:11:22:33:44:55", "TEST-ESP32")
+        testScheduler.advanceTimeBy(500) // Allow 400ms simulated connection handshake
+
+        // Disconnect
+        mockTransport.disconnect()
+        testScheduler.advanceTimeBy(100)
+
+        // User touch held during reconnect
+        engine.updateDrive(accel = true, brake = false)
+
+        // Reconnect
+        mockTransport.connect("00:11:22:33:44:55", "TEST-ESP32")
+        testScheduler.advanceTimeBy(500) // Allow 400ms simulated connection handshake
+
+        // Must remain in neutral (0 speed) until user releases touch to neutral
+        assertEquals(0, engine.lastSentCommand.value.leftSpeed)
+        assertEquals(0, engine.lastSentCommand.value.rightSpeed)
+
+        // Fresh release to neutral
+        engine.updateDrive(accel = false, brake = false)
+        testScheduler.advanceTimeBy(100)
+
+        // Now fresh touch is accepted
+        engine.updateDrive(accel = true, brake = false)
+        testScheduler.advanceTimeBy(100)
+        assertTrue(engine.lastSentCommand.value.leftSpeed > 0)
+
+        engine.stop()
+        mockTransport.disconnect()
+    }
 }

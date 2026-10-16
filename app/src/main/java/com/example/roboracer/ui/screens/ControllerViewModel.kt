@@ -53,6 +53,7 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
     val rawTouchInput: StateFlow<RawTouchInput> get() = controlEngine.rawTouchInput
     val resolvedControl: StateFlow<ResolvedControl> get() = controlEngine.resolvedControl
     val lastSentCommand: StateFlow<CommandFrame> get() = controlEngine.lastSentCommand
+    val isEmergencyStopped: StateFlow<Boolean> get() = controlEngine.isEmergencyStopped
     val mixer get() = controlEngine.mixer
 
     private val _isSettingsOpen = MutableStateFlow(false)
@@ -112,6 +113,14 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
 
     fun onAccelTouch(pressed: Boolean) {
         controlEngine.updateDrive(accel = pressed, brake = rawTouchInput.value.isBrakePressed)
+    }
+
+    fun emergencyStop() {
+        controlEngine.emergencyStop()
+    }
+
+    fun resetEmergencyStop() {
+        controlEngine.resetEmergencyStop()
     }
 
     override fun onCleared() {

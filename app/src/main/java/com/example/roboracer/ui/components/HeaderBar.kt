@@ -203,8 +203,8 @@ fun HeaderBar(
         ) {
             // Battery Status Bar - True Telemetry (no fabricated defaults when disconnected)
             val isConnected = (connectionStatus == ConnectionStatus.CONNECTED && telemetry != null)
-            val battPct = if (isConnected && telemetry != null) telemetry.batteryPercentage else null
-            val battVolts = if (isConnected && telemetry != null) telemetry.batteryVolts else null
+            val battPct = if (isConnected) telemetry?.batteryPercentage else null
+            val battVolts = if (isConnected) telemetry?.batteryVolts else null
             val battColor = when {
                 battPct == null -> TextMuted
                 battPct > 40 -> AccentGreen
@@ -254,7 +254,7 @@ fun HeaderBar(
             }
 
             // Speed HUD Readout
-            val speed = if (isConnected && telemetry != null) telemetry.speedKmh else null
+            val speed = if (isConnected) telemetry?.speedKmh else null
             Box(
                 modifier = Modifier
                     .cyberpunkBorder(

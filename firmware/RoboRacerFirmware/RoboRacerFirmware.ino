@@ -38,6 +38,15 @@
 #define PWM_CHAN_RIGHT_A    2
 #define PWM_CHAN_RIGHT_B    3
 
+// Core 2.x vs Core 3.x dual-compatibility LEDC macros
+#if defined(ESP_ARDUINO_VERSION_MAJOR) && (ESP_ARDUINO_VERSION_MAJOR >= 3)
+  #define PWM_LEDC_ATTACH(pin, chan, freq, res) ledcAttach((pin), (freq), (res))
+  #define PWM_LEDC_WRITE(pin, chan, duty)       ledcWrite((pin), (duty))
+#else
+  #define PWM_LEDC_ATTACH(pin, chan, freq, res) do { ledcSetup((chan), (freq), (res)); ledcAttachPin((pin), (chan)); } while(0)
+  #define PWM_LEDC_WRITE(pin, chan, duty)       ledcWrite((chan), (duty))
+#endif
+
 #define WATCHDOG_TIMEOUT_MS  500
 #define TELEMETRY_INTERVAL_MS 50
 #define MAX_DUTY_CYCLE_REV   160
@@ -59,6 +68,8 @@ enum SysState : uint8_t { STATE_IDLE = 0, STATE_RUNNING = 1, STATE_FAILSAFE = 2,
 
 BluetoothSerial SerialBT;
 bool bt_connected = false;
+bool first_cmd = true;
+uint8_t last_cmd_seq = 0;
 unsigned long last_cmd_time = 0;
 unsigned long last_telem_time = 0;
 unsigned long last_ramp_time = 0;
@@ -99,8 +110,8 @@ uint8_t calc_crc8(const uint8_t *data, size_t len) {
 
 void set_hw_left(uint8_t spd, uint8_t dir) {
     if (spd < MIN_START_DUTY || dir == DIR_STOP) {
-        ledcWrite(PWM_CHAN_LEFT_A, 0);
-        ledcWrite(PWM_CHAN_LEFT_B, 0);
+        PWM_LEDC_WRITE(PIN_LEFT_ENA, PWM_CHAN_LEFT_A, 0);
+        PWM_LEDC_WRITE(PIN_LEFT_ENB, PWM_CHAN_LEFT_B, 0);
         digitalWrite(PIN_LEFT_IN1, LOW);
         digitalWrite(PIN_LEFT_IN2, LOW);
         digitalWrite(PIN_LEFT_IN3, LOW);
@@ -111,14 +122,14 @@ void set_hw_left(uint8_t spd, uint8_t dir) {
     digitalWrite(PIN_LEFT_IN2, (dir == DIR_FWD) ? LOW : HIGH);
     digitalWrite(PIN_LEFT_IN3, (dir == DIR_FWD) ? HIGH : LOW);
     digitalWrite(PIN_LEFT_IN4, (dir == DIR_FWD) ? LOW : HIGH);
-    ledcWrite(PWM_CHAN_LEFT_A, spd);
-    ledcWrite(PWM_CHAN_LEFT_B, spd);
+    PWM_LEDC_WRITE(PIN_LEFT_ENA, PWM_CHAN_LEFT_A, spd);
+    PWM_LEDC_WRITE(PIN_LEFT_ENB, PWM_CHAN_LEFT_B, spd);
 }
 
 void set_hw_right(uint8_t spd, uint8_t dir) {
     if (spd < MIN_START_DUTY || dir == DIR_STOP) {
-        ledcWrite(PWM_CHAN_RIGHT_A, 0);
-        ledcWrite(PWM_CHAN_RIGHT_B, 0);
+        PWM_LEDC_WRITE(PIN_RIGHT_ENA, PWM_CHAN_RIGHT_A, 0);
+        PWM_LEDC_WRITE(PIN_RIGHT_ENB, PWM_CHAN_RIGHT_B, 0);
         digitalWrite(PIN_RIGHT_IN1, LOW);
         digitalWrite(PIN_RIGHT_IN2, LOW);
         digitalWrite(PIN_RIGHT_IN3, LOW);
@@ -129,8 +140,8 @@ void set_hw_right(uint8_t spd, uint8_t dir) {
     digitalWrite(PIN_RIGHT_IN2, (dir == DIR_FWD) ? LOW : HIGH);
     digitalWrite(PIN_RIGHT_IN3, (dir == DIR_FWD) ? HIGH : LOW);
     digitalWrite(PIN_RIGHT_IN4, (dir == DIR_FWD) ? LOW : HIGH);
-    ledcWrite(PWM_CHAN_RIGHT_A, spd);
-    ledcWrite(PWM_CHAN_RIGHT_B, spd);
+    PWM_LEDC_WRITE(PIN_RIGHT_ENA, PWM_CHAN_RIGHT_A, spd);
+    PWM_LEDC_WRITE(PIN_RIGHT_ENB, PWM_CHAN_RIGHT_B, spd);
 }
 
 void stop_all_motors() {
@@ -147,9 +158,11 @@ void stop_all_motors() {
 void bt_event_cb(esp_spp_cb_event_t event, esp_spp_cb_param_t *param) {
     if (event == ESP_SPP_SRV_OPEN_EVT) {
         bt_connected = true;
+        first_cmd = true;
         last_cmd_time = millis();
     } else if (event == ESP_SPP_CLOSE_EVT) {
         bt_connected = false;
+        first_cmd = true;
         last_cmd_time = 0;
         stop_all_motors();
     }
@@ -168,15 +181,10 @@ void setup() {
     pinMode(PIN_RIGHT_IN1, OUTPUT); pinMode(PIN_RIGHT_IN2, OUTPUT);
     pinMode(PIN_RIGHT_IN3, OUTPUT); pinMode(PIN_RIGHT_IN4, OUTPUT);
 
-    ledcSetup(PWM_CHAN_LEFT_A, PWM_FREQ_HZ, PWM_RESOLUTION);
-    ledcSetup(PWM_CHAN_LEFT_B, PWM_FREQ_HZ, PWM_RESOLUTION);
-    ledcSetup(PWM_CHAN_RIGHT_A, PWM_FREQ_HZ, PWM_RESOLUTION);
-    ledcSetup(PWM_CHAN_RIGHT_B, PWM_FREQ_HZ, PWM_RESOLUTION);
-
-    ledcAttachPin(PIN_LEFT_ENA, PWM_CHAN_LEFT_A);
-    ledcAttachPin(PIN_LEFT_ENB, PWM_CHAN_LEFT_B);
-    ledcAttachPin(PIN_RIGHT_ENA, PWM_CHAN_RIGHT_A);
-    ledcAttachPin(PIN_RIGHT_ENB, PWM_CHAN_RIGHT_B);
+    PWM_LEDC_ATTACH(PIN_LEFT_ENA, PWM_CHAN_LEFT_A, PWM_FREQ_HZ, PWM_RESOLUTION);
+    PWM_LEDC_ATTACH(PIN_LEFT_ENB, PWM_CHAN_LEFT_B, PWM_FREQ_HZ, PWM_RESOLUTION);
+    PWM_LEDC_ATTACH(PIN_RIGHT_ENA, PWM_CHAN_RIGHT_A, PWM_FREQ_HZ, PWM_RESOLUTION);
+    PWM_LEDC_ATTACH(PIN_RIGHT_ENB, PWM_CHAN_RIGHT_B, PWM_FREQ_HZ, PWM_RESOLUTION);
 
     stop_all_motors();
 
@@ -202,13 +210,29 @@ void loop() {
                 rx_idx = 0;
                 if (rx_buf[1] == PROTOCOL_VERSION && rx_buf[2] == MSG_TYPE_COMMAND && rx_buf[10] == PROTOCOL_END_BYTE) {
                     if (calc_crc8(rx_buf, 9) == rx_buf[9]) {
-                        last_cmd_time = now;
-                        tgt_left_speed  = rx_buf[4];
-                        tgt_left_dir    = rx_buf[5];
-                        tgt_right_speed = rx_buf[6];
-                        tgt_right_dir   = rx_buf[7];
-                        if (tgt_left_dir == DIR_REV && tgt_left_speed > MAX_DUTY_CYCLE_REV) tgt_left_speed = MAX_DUTY_CYCLE_REV;
-                        if (tgt_right_dir == DIR_REV && tgt_right_speed > MAX_DUTY_CYCLE_REV) tgt_right_speed = MAX_DUTY_CYCLE_REV;
+                        uint8_t seq = rx_buf[8];
+                        bool is_fresh = false;
+                        if (first_cmd) {
+                            first_cmd = false;
+                            last_cmd_seq = seq;
+                            is_fresh = true;
+                        } else {
+                            uint8_t diff = seq - last_cmd_seq;
+                            if (diff > 0 && diff < 128) {
+                                last_cmd_seq = seq;
+                                is_fresh = true;
+                            }
+                        }
+
+                        if (is_fresh) {
+                            last_cmd_time = now;
+                            tgt_left_speed  = rx_buf[4];
+                            tgt_left_dir    = rx_buf[5];
+                            tgt_right_speed = rx_buf[6];
+                            tgt_right_dir   = rx_buf[7];
+                            if (tgt_left_dir == DIR_REV && tgt_left_speed > MAX_DUTY_CYCLE_REV) tgt_left_speed = MAX_DUTY_CYCLE_REV;
+                            if (tgt_right_dir == DIR_REV && tgt_right_speed > MAX_DUTY_CYCLE_REV) tgt_right_speed = MAX_DUTY_CYCLE_REV;
+                        }
                     }
                 }
             }
@@ -268,7 +292,7 @@ void loop() {
                     cur_right_speed = (next > tgt_right_speed) ? tgt_right_speed : next;
                 } else if (cur_right_speed > tgt_right_speed) {
                     uint16_t next = (cur_right_speed > 20) ? (cur_right_speed - 20) : 0;
-                    cur_right_speed = (next < tgt_right_speed) ? target_right_speed : next;
+                    cur_right_speed = (next < tgt_right_speed) ? tgt_right_speed : next;
                 }
             }
             set_hw_right(cur_right_speed, cur_right_dir);

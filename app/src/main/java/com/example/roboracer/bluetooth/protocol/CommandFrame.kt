@@ -21,6 +21,8 @@ data class CommandFrame(
     val rightDir: MotorDir,
     val sequence: Int         // 0 - 255
 ) {
+    val isStop: Boolean
+        get() = (leftSpeed == 0 && rightSpeed == 0) || (leftDir == MotorDir.STOP && rightDir == MotorDir.STOP)
     companion object {
         const val START_BYTE: Byte = 0xAA.toByte()
         const val END_BYTE: Byte = 0x55.toByte()

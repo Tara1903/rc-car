@@ -64,9 +64,23 @@ class ProtocolTest {
         assertEquals(150, parsed.leftActualSpeed)
         assertEquals(160, parsed.rightActualSpeed)
         assertEquals(11800, parsed.batteryMilliVolts)
+        assertEquals(11.8f, parsed.batteryVolts!!, 0.01f)
+        assertNotNull(parsed.batteryPercentage)
         assertEquals(0, parsed.faultFlags)
         assertEquals(105, parsed.fwCounter)
-        assertTrue(parsed.speedKmh > 0)
+
+        // Honest telemetry: real hardware frame has no physical tachometer, so speedKmh is null
+        assertNull(parsed.speedKmh)
+
+        // In simulation mode, speedKmh is available
+        val simParsed = parsed.copy(isSimulated = true)
+        assertNotNull(simParsed.speedKmh)
+        assertTrue(simParsed.speedKmh!! > 0)
+
+        // Sub-3000mV ADC reading (uncalibrated or disconnected) produces null voltage/percentage
+        val lowAdc = parsed.copy(batteryMilliVolts = 1500)
+        assertNull(lowAdc.batteryVolts)
+        assertNull(lowAdc.batteryPercentage)
     }
 
     @Test

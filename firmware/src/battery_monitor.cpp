@@ -1,6 +1,6 @@
 #include "battery_monitor.h"
 
-BatteryMonitor::BatteryMonitor() : smoothed_mv(11100), last_sample_time(0) {}
+BatteryMonitor::BatteryMonitor() : smoothed_mv(0), last_sample_time(0) {}
 
 void BatteryMonitor::begin() {
     pinMode(PIN_BATTERY_ADC, INPUT);

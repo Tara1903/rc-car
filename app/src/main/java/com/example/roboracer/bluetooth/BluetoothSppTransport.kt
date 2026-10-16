@@ -144,6 +144,12 @@ class BluetoothSppTransport(
 
     override fun sendCommand(command: CommandFrame) {
         if (_connectionStatus.value != ConnectionStatus.CONNECTED) return
+        if (command.isStop) {
+            // High-priority stop command: flush/drain any pending unwritten motion frames
+            while (commandChannel.tryReceive().isSuccess) {
+                // Drain stale commands
+            }
+        }
         // Offer to FIFO conflated channel; consumed sequentially by single writer coroutine
         commandChannel.trySend(command)
     }

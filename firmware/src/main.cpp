@@ -15,13 +15,31 @@ BatteryMonitor battery;
 static unsigned long last_telemetry_time = 0;
 static uint8_t telemetry_counter = 0;
 static bool bt_client_connected = false;
+static bool first_command = true;
+static uint8_t last_cmd_seq = 0;
+
+static bool is_fresh_sequence(uint8_t seq) {
+    if (first_command) {
+        first_command = false;
+        last_cmd_seq = seq;
+        return true;
+    }
+    uint8_t diff = seq - last_cmd_seq;
+    if (diff > 0 && diff < 128) {
+        last_cmd_seq = seq;
+        return true;
+    }
+    return false; // Stale or duplicate sequence
+}
 
 void bt_callback(esp_spp_cb_event_t event, esp_spp_cb_param_t *param) {
     if (event == ESP_SPP_SRV_OPEN_EVT) {
         bt_client_connected = true;
+        first_command = true;
         watchdog.feed(); // Grace period upon connection
     } else if (event == ESP_SPP_CLOSE_EVT) {
         bt_client_connected = false;
+        first_command = true;
         watchdog.reset();
         motors.emergency_stop();
     }
@@ -62,8 +80,10 @@ void loop() {
         uint8_t byte = SerialBT.read();
         MotorCommand cmd;
         if (parser.parse_byte(byte, cmd)) {
-            watchdog.feed();
-            motors.apply_command(cmd);
+            if (is_fresh_sequence(cmd.sequence)) {
+                watchdog.feed();
+                motors.apply_command(cmd);
+            }
         }
     }
 

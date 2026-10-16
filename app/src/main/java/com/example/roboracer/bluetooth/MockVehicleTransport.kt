@@ -94,7 +94,8 @@ class MockVehicleTransport(
                     rightActualSpeed = simRightSpeed,
                     batteryMilliVolts = simBatteryMv,
                     faultFlags = 0,
-                    fwCounter = counter and 0xFF
+                    fwCounter = counter and 0xFF,
+                    isSimulated = true
                 )
                 _rttLatencyMs.value = (10..18).random().toLong()
             }

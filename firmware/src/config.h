@@ -44,6 +44,15 @@
 #define PWM_CHAN_RIGHT_A    2
 #define PWM_CHAN_RIGHT_B    3
 
+// Core 2.x vs Core 3.x dual-compatibility LEDC macros
+#if defined(ESP_ARDUINO_VERSION_MAJOR) && (ESP_ARDUINO_VERSION_MAJOR >= 3)
+  #define PWM_LEDC_ATTACH(pin, chan, freq, res) ledcAttach((pin), (freq), (res))
+  #define PWM_LEDC_WRITE(pin, chan, duty)       ledcWrite((pin), (duty))
+#else
+  #define PWM_LEDC_ATTACH(pin, chan, freq, res) do { ledcSetup((chan), (freq), (res)); ledcAttachPin((pin), (chan)); } while(0)
+  #define PWM_LEDC_WRITE(pin, chan, duty)       ledcWrite((chan), (duty))
+#endif
+
 // SAFETY LIMITS & TIMING
 #define WATCHDOG_TIMEOUT_MS  500  // Cut motor power if no command received for 500ms
 #define TELEMETRY_INTERVAL_MS 50  // Send telemetry at 20 Hz
