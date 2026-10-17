@@ -4,13 +4,6 @@ import com.example.roboracer.bluetooth.protocol.CommandFrame
 import com.example.roboracer.bluetooth.protocol.MotorDir
 import kotlin.math.abs
 
-data class MotorOutput(
-    val leftSpeed: Int,
-    val leftDir: MotorDir,
-    val rightSpeed: Int,
-    val rightDir: MotorDir
-)
-
 class DifferentialDriveMixer(
     var steeringSensitivity: Float = 0.75f,
     var maxSpeedLimit: Float = 1.0f,
