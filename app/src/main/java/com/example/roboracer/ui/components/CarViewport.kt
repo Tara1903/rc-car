@@ -31,7 +31,8 @@ fun CarViewport(
     telemetry: TelemetryFrame?,
     modifier: Modifier = Modifier
 ) {
-    val renderer = remember { CarGLSurfaceRenderer() }
+    val context = androidx.compose.ui.platform.LocalContext.current
+    val renderer = remember { CarGLSurfaceRenderer(context.applicationContext) }
     val lifecycleOwner = LocalLifecycleOwner.current
     var glSurfaceViewRef by remember { mutableStateOf<GLSurfaceView?>(null) }
 
@@ -46,8 +47,9 @@ fun CarViewport(
 
     Box(modifier = modifier.fillMaxSize()) {
         AndroidView(
-            factory = { context ->
-                GLSurfaceView(context).apply {
+            factory = { ctx ->
+                renderer.context = ctx.applicationContext
+                GLSurfaceView(ctx).apply {
                     setEGLContextClientVersion(2)
                     setRenderer(renderer)
                     renderMode = GLSurfaceView.RENDERMODE_CONTINUOUSLY

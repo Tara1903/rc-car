@@ -268,18 +268,18 @@ def build_acrylic_deck(name, z_pos, mats, parent):
         parent=parent
     )
     
-    # Front & Rear contoured bumper tabs
+    # Front & Rear contoured bumper tabs (local Z=0 relative to deck center)
     create_cube(
         f"{name}_bumper_front",
         size=(DECK_W * 0.78, 0.015, DECK_T * 1.05),
-        location=(0, DECK_L / 2.0 - 0.0075, z_pos + DECK_T / 2.0),
+        location=(0, DECK_L / 2.0 - 0.0075, 0),
         material=mats["acrylic_yellow"],
         parent=deck
     )
     create_cube(
         f"{name}_bumper_rear",
         size=(DECK_W * 0.78, 0.015, DECK_T * 1.05),
-        location=(0, -DECK_L / 2.0 + 0.0075, z_pos + DECK_T / 2.0),
+        location=(0, -DECK_L / 2.0 + 0.0075, 0),
         material=mats["acrylic_yellow"],
         parent=deck
     )
@@ -1035,11 +1035,11 @@ def render_previews():
     # Camera views: In Blender Z-up:
     # +Z is up, -Y is rear, +Y is front, +X is right, -X is left
     views = [
-        ("rear_three_quarter.png", (0.24, -0.26, 0.17), (0.0, 0.0, 0.045)),
-        ("front_three_quarter.png", (0.24, 0.26, 0.17), (0.0, 0.0, 0.045)),
-        ("top_view.png", (0.001, 0.001, 0.42), (0.0, 0.0, 0.045)),
-        ("electronics_closeup.png", (-0.06, -0.01, 0.14), (-0.01, -0.01, 0.06)),
-        ("app_camera_view.png", (0.0, -0.310, 0.145), (0.0, 0.0, 0.035))
+        ("rear_three_quarter.png", (0.28, -0.30, 0.20), (0.0, 0.0, 0.045)),
+        ("front_three_quarter.png", (0.28, 0.30, 0.20), (0.0, 0.0, 0.045)),
+        ("top_view.png", (0.001, 0.001, 0.45), (0.0, 0.0, 0.045)),
+        ("electronics_closeup.png", (0.13, 0.02, 0.16), (0.0, 0.015, 0.062)),
+        ("app_camera_view.png", (0.0, -0.310, 0.145), (0.0, 0.020, 0.045))
     ]
     
     for filename, cam_loc, target_loc in views:

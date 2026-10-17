@@ -1,13 +1,23 @@
 package com.example.roboracer.renderer
 
+import android.content.Context
 import android.opengl.GLES20
 import android.opengl.GLSurfaceView
 import android.opengl.Matrix
 import android.util.Log
+import com.example.roboracer.renderer.gltf.GltfModel
+import com.example.roboracer.renderer.gltf.GltfParser
+import com.example.roboracer.renderer.gltf.GltfShaderProgram
 import javax.microedition.khronos.egl.EGLConfig
 import javax.microedition.khronos.opengles.GL10
 
-class CarGLSurfaceRenderer : GLSurfaceView.Renderer {
+/**
+ * OpenGL ES 2.0 Renderer that displays the Robo Racer 4WD vehicle,
+ * loading and rendering the high-detail glTF 2.0 model with fallback
+ * to procedural geometry, dynamic 4-wheel rotation, chassis pitch/roll physics,
+ * workshop perspective floor grid, and neon underglow.
+ */
+class CarGLSurfaceRenderer(var context: Context? = null) : GLSurfaceView.Renderer {
 
     companion object {
         private const val TAG = "Car3DRenderer"
@@ -61,7 +71,14 @@ class CarGLSurfaceRenderer : GLSurfaceView.Renderer {
     private val chassisMatrix = FloatArray(16)
     private val wheelMatrix = FloatArray(16)
 
+    // Fallback procedural geometry and ground grid
     private var carModel: RoboRacer3DModel? = null
+
+    // Detailed glTF 2.0 model & shader
+    var gltfModel: GltfModel? = null
+        private set
+    private var gltfShader: GltfShaderProgram? = null
+    private var lastFrameTimeNs: Long = 0L
 
     // Real-time animation inputs
     @Volatile var throttle: Float = 0f
@@ -80,7 +97,7 @@ class CarGLSurfaceRenderer : GLSurfaceView.Renderer {
         GLES20.glEnable(GLES20.GL_BLEND)
         GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
 
-        // Compile Shaders
+        // Compile legacy shader for workshop grid & underglow quad (and fallback)
         val vertShader = loadShader(GLES20.GL_VERTEX_SHADER, VERTEX_SHADER_SRC)
         val fragShader = loadShader(GLES20.GL_FRAGMENT_SHADER, FRAGMENT_SHADER_SRC)
         programHandle = GLES20.glCreateProgram().also {
@@ -97,6 +114,19 @@ class CarGLSurfaceRenderer : GLSurfaceView.Renderer {
         aColorHandle = GLES20.glGetAttribLocation(programHandle, "a_Color")
 
         carModel = RoboRacer3DModel()
+
+        // Load realistic glTF 2.0 Robo Racer asset from APK assets
+        context?.let { ctx ->
+            try {
+                ctx.assets.open("models/robo_racer_car.glb").use { stream ->
+                    gltfModel = GltfParser.parse(stream)
+                    gltfShader = GltfShaderProgram()
+                    Log.i(TAG, "Robo Racer glTF model loaded successfully (${gltfModel?.allNodes?.size} nodes)")
+                }
+            } catch (e: Exception) {
+                Log.e(TAG, "Failed to load robo_racer_car.glb, falling back to procedural model", e)
+            }
+        }
     }
 
     override fun onSurfaceChanged(gl: GL10?, width: Int, height: Int) {
@@ -135,42 +165,73 @@ class CarGLSurfaceRenderer : GLSurfaceView.Renderer {
         Matrix.multiplyMM(mvpMatrix, 0, projectionMatrix, 0, mvpMatrix, 0)
         drawMesh(model.underglowQuad, modelMatrix, mvpMatrix)
 
-        // 3. Wheel Spin Animation
-        val spinSpeedLeft = if (leftActualSpeed > 0) (leftActualSpeed / 255f) * 16f else (throttle * 14f)
-        val spinSpeedRight = if (rightActualSpeed > 0) (rightActualSpeed / 255f) * 16f else (throttle * 14f)
-        wheelAngleLeft -= spinSpeedLeft
-        wheelAngleRight -= spinSpeedRight
+        val gModel = gltfModel
+        val gShader = gltfShader
+        if (gModel != null && gShader != null) {
+            val now = System.nanoTime()
+            val dt = if (lastFrameTimeNs > 0L) {
+                ((now - lastFrameTimeNs) / 1_000_000_000f).coerceIn(0.001f, 0.1f)
+            } else {
+                0.016f
+            }
+            lastFrameTimeNs = now
 
-        // 4. Chassis Dynamics (Pitch & Roll transforms)
-        val pitchDeg = when {
-            isBraking -> 3.2f       // Forward dive under braking
-            throttle > 0 -> -2.6f    // Rear squat under acceleration
-            throttle < 0 -> 1.8f     // Reverse dive
-            else -> 0f
+            // Update real-time physics and 4-wheel animation
+            gModel.updateAnimation(
+                throttle = throttle,
+                steering = steering,
+                isBraking = isBraking,
+                leftPwm = leftActualSpeed,
+                rightPwm = rightActualSpeed,
+                dtSeconds = dt
+            )
+
+            // Render detailed glTF vehicle model
+            gShader.use()
+            gShader.setLighting(
+                lightPos = floatArrayOf(2.5f, 4.5f, 3.5f),
+                viewPos = floatArrayOf(0.0f, 1.45f, 3.1f)
+            )
+            gModel.render(viewMatrix, projectionMatrix, gShader, isBraking)
+        } else {
+            // Procedural Fallback
+            // 3. Wheel Spin Animation
+            val spinSpeedLeft = if (leftActualSpeed > 0) (leftActualSpeed / 255f) * 16f else (throttle * 14f)
+            val spinSpeedRight = if (rightActualSpeed > 0) (rightActualSpeed / 255f) * 16f else (throttle * 14f)
+            wheelAngleLeft -= spinSpeedLeft
+            wheelAngleRight -= spinSpeedRight
+
+            // 4. Chassis Dynamics (Pitch & Roll transforms)
+            val pitchDeg = when {
+                isBraking -> 3.2f       // Forward dive under braking
+                throttle > 0 -> -2.6f    // Rear squat under acceleration
+                throttle < 0 -> 1.8f     // Reverse dive
+                else -> 0f
+            }
+            val rollDeg = steering * 2.8f // Roll into corner
+
+            Matrix.setIdentityM(chassisMatrix, 0)
+            Matrix.translateM(chassisMatrix, 0, 0f, 0f, 0f)
+            Matrix.rotateM(chassisMatrix, 0, pitchDeg, 1f, 0f, 0f)
+            Matrix.rotateM(chassisMatrix, 0, rollDeg, 0f, 0f, 1f)
+
+            // Draw All Chassis Body Meshes
+            for (mesh in model.bodyMeshes) {
+                Matrix.multiplyMM(mvpMatrix, 0, viewMatrix, 0, chassisMatrix, 0)
+                Matrix.multiplyMM(mvpMatrix, 0, projectionMatrix, 0, mvpMatrix, 0)
+                drawMesh(mesh, chassisMatrix, mvpMatrix)
+            }
+
+            // 5. Draw 4x Wheels with Independent Spin Rotations
+            // Rear Left Wheel
+            drawWheel(model.wheelRL, model.wheelRLPos, wheelAngleLeft)
+            // Rear Right Wheel
+            drawWheel(model.wheelRR, model.wheelRRPos, wheelAngleRight)
+            // Front Left Wheel
+            drawWheel(model.wheelFL, model.wheelFLPos, wheelAngleLeft)
+            // Front Right Wheel
+            drawWheel(model.wheelFR, model.wheelFRPos, wheelAngleRight)
         }
-        val rollDeg = steering * 2.8f // Roll into corner
-
-        Matrix.setIdentityM(chassisMatrix, 0)
-        Matrix.translateM(chassisMatrix, 0, 0f, 0f, 0f)
-        Matrix.rotateM(chassisMatrix, 0, pitchDeg, 1f, 0f, 0f)
-        Matrix.rotateM(chassisMatrix, 0, rollDeg, 0f, 0f, 1f)
-
-        // Draw All Chassis Body Meshes
-        for (mesh in model.bodyMeshes) {
-            Matrix.multiplyMM(mvpMatrix, 0, viewMatrix, 0, chassisMatrix, 0)
-            Matrix.multiplyMM(mvpMatrix, 0, projectionMatrix, 0, mvpMatrix, 0)
-            drawMesh(mesh, chassisMatrix, mvpMatrix)
-        }
-
-        // 5. Draw 4x Wheels with Independent Spin Rotations
-        // Rear Left Wheel
-        drawWheel(model.wheelRL, model.wheelRLPos, wheelAngleLeft)
-        // Rear Right Wheel
-        drawWheel(model.wheelRR, model.wheelRRPos, wheelAngleRight)
-        // Front Left Wheel
-        drawWheel(model.wheelFL, model.wheelFLPos, wheelAngleLeft)
-        // Front Right Wheel
-        drawWheel(model.wheelFR, model.wheelFRPos, wheelAngleRight)
     }
 
     private fun drawWheel(wheelMesh: Mesh3D, pos: FloatArray, spinAngle: Float) {
