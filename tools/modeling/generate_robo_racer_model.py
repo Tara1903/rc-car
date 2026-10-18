@@ -238,13 +238,24 @@ def build_materials_palette():
         roughness=0.55
     )
 
-    # Battery Cell Body (Industrial Blue 18650 / AA cells)
-    mats["battery_cell_blue"] = create_pbr_material(
-        "Mat_BatteryCellBlue",
-        base_color=(0.08, 0.35, 0.85, 1.0),
-        metallic=0.10,
-        roughness=0.30
+    # Alkaline Battery Cell Body (Duracell / Eveready styling: Matte Black Jacket)
+    mats["battery_cell_alkaline_black"] = create_pbr_material(
+        "Mat_BatteryCellAlkalineBlack",
+        base_color=(0.08, 0.08, 0.09, 1.0),
+        metallic=0.08,
+        roughness=0.45
     )
+
+    # Alkaline Battery Cell Positive Shoulder Band (Duracell / Copper-Top styling)
+    mats["battery_cell_alkaline_copper"] = create_pbr_material(
+        "Mat_BatteryCellAlkalineCopper",
+        base_color=(0.88, 0.48, 0.16, 1.0),
+        metallic=0.75,
+        roughness=0.28
+    )
+
+    # Legacy blue cell material alias for backward compatibility
+    mats["battery_cell_blue"] = mats["battery_cell_alkaline_black"]
 
     # Optical Speed Encoder Disc (Matte Black with 20 slots)
     mats["encoder_disc_black"] = create_pbr_material(
@@ -997,22 +1008,38 @@ def build_battery_holder_assembly(name, x, y, z, mats, parent):
         parent=batt_root
     )
 
-    # 2. Four Cylindrical Battery Cells seated in parallel bays
+    # 2. Four Cylindrical AA Alkaline Battery Cells (Duracell / Eveready styling)
     cell_r = 0.0068
     cell_len = 0.050
     rot_y = (math.radians(90), 0, 0) # Cylinder along Y-axis
 
+    body_len = cell_len * 0.72   # 36 mm matte black jacket
+    copper_len = cell_len * 0.28 # 14 mm metallic copper-top band
+
     for c in range(4):
         cx = -bw * 0.36 + c * (bw * 0.24)
-        # Blue cell body
+        # Matte black alkaline body jacket (negative/center section)
+        body_y = -cell_len / 2.0 + body_len / 2.0
         create_cylinder(
-            f"{name}_cell_{c}",
+            f"{name}_cell_body_{c}",
             radius=cell_r,
-            depth=cell_len,
-            location=(cx, 0, tray_t + cell_r),
+            depth=body_len,
+            location=(cx, body_y, tray_t + cell_r),
             rotation=rot_y,
             vertices=18,
-            material=mats["battery_cell_blue"],
+            material=mats["battery_cell_alkaline_black"],
+            parent=batt_root
+        )
+        # Metallic copper/gold band at positive terminal shoulder
+        copper_y = cell_len / 2.0 - copper_len / 2.0
+        create_cylinder(
+            f"{name}_cell_copper_{c}",
+            radius=cell_r,
+            depth=copper_len,
+            location=(cx, copper_y, tray_t + cell_r),
+            rotation=rot_y,
+            vertices=18,
+            material=mats["battery_cell_alkaline_copper"],
             parent=batt_root
         )
         # Nickel positive terminal button
@@ -1234,7 +1261,7 @@ def build_complete_robo_racer():
 # Studio Lighting & Camera Renders
 # -----------------------------------------------------------------------------
 def setup_lighting():
-    """Sets up a three-point studio lighting rig with high visual readability."""
+    """Sets up a comprehensive studio lighting rig with bottom illumination for under-chassis inspection."""
     if bpy.context.scene.world and bpy.context.scene.world.node_tree:
         bg = bpy.context.scene.world.node_tree.nodes.get("Background")
         if bg:
@@ -1268,6 +1295,15 @@ def setup_lighting():
     rim_obj.location = (0.0, 0.45, 0.30)
     rim_obj.rotation_euler = (math.radians(-65), 0, 0)
 
+    # Under-Chassis Uplight (Essential for bottom view motor and battery inspection)
+    under_light = bpy.data.lights.new(name="Under_Light", type="SUN")
+    under_light.energy = 3.5
+    under_light.color = (0.95, 0.97, 1.0)
+    under_obj = bpy.data.objects.new("Under_Light_Obj", under_light)
+    bpy.context.collection.objects.link(under_obj)
+    under_obj.location = (0.0, 0.0, -0.50)
+    under_obj.rotation_euler = (math.radians(180), 0, 0)
+
 def point_camera_at(cam_obj, target_pos=(0, 0, 0.045)):
     """Points camera directly at target_pos using -Z forward and +Z world up."""
     direction = mathutils.Vector(target_pos) - cam_obj.location
@@ -1275,13 +1311,13 @@ def point_camera_at(cam_obj, target_pos=(0, 0, 0.045)):
     cam_obj.rotation_euler = rot_quat.to_euler()
 
 def render_previews():
-    """Renders all 7 required engineering views and saves to docs/model/previews/."""
+    """Renders all 7 preview images and all 13 final engineering perspectives."""
     print("Setting up render camera & scenes...")
     sys.stdout.flush()
     scene = bpy.context.scene
     scene.render.engine = "BLENDER_EEVEE"
-    scene.render.resolution_x = 1280
-    scene.render.resolution_y = 720
+    scene.render.resolution_x = 1920
+    scene.render.resolution_y = 1080
     scene.render.image_settings.file_format = "PNG"
 
     cam_data = bpy.data.cameras.new("Render_Camera")
@@ -1290,8 +1326,8 @@ def render_previews():
     bpy.context.collection.objects.link(cam_obj)
     scene.camera = cam_obj
 
-    # Standard inspection camera views
-    views = [
+    # 1. Standard inspection preview views (docs/model/previews/)
+    preview_views = [
         ("rear_three_quarter.png", (0.28, -0.30, 0.20), (0.0, 0.0, 0.045)),
         ("front_three_quarter.png", (0.28, 0.30, 0.20), (0.0, 0.0, 0.045)),
         ("top_view.png", (0.001, 0.001, 0.45), (0.0, 0.0, 0.045)),
@@ -1300,24 +1336,34 @@ def render_previews():
         ("app_camera_view.png", (0.0, -0.310, 0.145), (0.0, 0.020, 0.045))
     ]
 
-    for filename, cam_loc, target_loc in views:
+    for filename, cam_loc, target_loc in preview_views:
         cam_obj.location = cam_loc
         point_camera_at(cam_obj, target_loc)
         out_path = os.path.join(PREVIEWS_DIR, filename)
         scene.render.filepath = out_path
-        print(f"Rendering {filename} -> {out_path}...")
+        print(f"Rendering preview {filename} -> {out_path}...")
         sys.stdout.flush()
         bpy.ops.render.render(write_still=True)
         print(f"Saved preview: {out_path}")
         sys.stdout.flush()
 
-    # Render Exploded Assembly View
+    # 2. Render Exploded Assembly View (saves to both PREVIEWS_DIR and HARDWARE_RENDERS_DIR)
     render_exploded_view(scene, cam_obj)
 
-    # -------------------------------------------------------------------------
-    # Dedicated Hardware Wiring Inspection Views (saved to docs/hardware/renders/)
-    # -------------------------------------------------------------------------
-    wiring_views = [
+    # 3. Dedicated 13 Final Engineering Perspectives (docs/hardware/renders/)
+    hardware_views = [
+        ("final_front_three_quarter.png", (0.28, 0.30, 0.20), (0.0, 0.0, 0.045)),
+        ("final_rear_three_quarter.png", (0.28, -0.30, 0.20), (0.0, 0.0, 0.045)),
+        ("final_top_view.png", (0.001, 0.001, 0.45), (0.0, 0.0, 0.045)),
+        ("final_side_view.png", (0.36, 0.0, 0.045), (0.0, 0.0, 0.045)),
+        ("final_bottom_view.png", (0.001, 0.001, -0.42), (0.0, 0.0, 0.025)),
+        ("final_electronics_closeup.png", (0.13, 0.02, 0.16), (0.0, 0.015, 0.062)),
+        ("final_power_path.png", (0.18, -0.22, 0.16), (0.0, -0.040, 0.055)),
+        ("final_gpio_wiring.png", (0.06, 0.06, 0.10), (0.0, 0.045, 0.065)),
+        ("final_motor_connections.png", (-0.22, 0.02, 0.09), (-0.035, 0.0, 0.035)),
+        ("final_android_camera_view.png", (0.0, -0.310, 0.145), (0.0, 0.020, 0.045)),
+        ("final_complete_wiring_render.png", (0.16, -0.16, 0.20), (0.0, -0.010, 0.055)),
+        # Legacy wiring inspection filenames preserved for existing doc links
         ("wiring_top_view.png", (0.001, 0.001, 0.38), (0.0, 0.0, 0.050)),
         ("wiring_front_three_quarter.png", (0.22, 0.24, 0.18), (0.0, 0.015, 0.055)),
         ("wiring_electronics_closeup.png", (0.12, 0.01, 0.14), (0.0, -0.010, 0.060)),
@@ -1326,29 +1372,96 @@ def render_previews():
         ("wiring_motor_connections.png", (-0.22, 0.02, 0.09), (-0.035, 0.0, 0.035))
     ]
 
-    print("Rendering dedicated wiring inspection perspectives...")
+    print("Rendering final engineering hardware perspectives...")
     sys.stdout.flush()
-    for filename, cam_loc, target_loc in wiring_views:
+    for filename, cam_loc, target_loc in hardware_views:
         cam_obj.location = cam_loc
         point_camera_at(cam_obj, target_loc)
         out_path = os.path.join(HARDWARE_RENDERS_DIR, filename)
         scene.render.filepath = out_path
-        print(f"Rendering wiring preview {filename} -> {out_path}...")
+        print(f"Rendering {filename} -> {out_path}...")
         sys.stdout.flush()
         bpy.ops.render.render(write_still=True)
-        print(f"Saved wiring preview: {out_path}")
+        print(f"Saved engineering render: {out_path}")
         sys.stdout.flush()
 
+    # 4. Render Differential Steering Perspective (with visual rotation vectors)
+    render_differential_steering_view(scene, cam_obj)
+
     bpy.data.objects.remove(cam_obj)
+
+def render_differential_steering_view(scene, cam_obj):
+    """
+    Renders final_differential_steering.png with visual rotation vectors,
+    demonstrating skid-steering differential rotation, then cleans up indicators.
+    """
+    out_path = os.path.join(HARDWARE_RENDERS_DIR, "final_differential_steering.png")
+    print(f"Rendering differential steering perspective -> {out_path}...")
+    sys.stdout.flush()
+
+    temp_objs = []
+    mat_green = bpy.data.materials.get("Mat_WireGreen")
+    mat_red = bpy.data.materials.get("Mat_WireRed")
+
+    # Right side: forward rotation indicators (+Y)
+    for y_axle in (WHEELBASE_Y, -WHEELBASE_Y):
+        arr = create_cube(
+            f"temp_arrow_r_{y_axle}",
+            size=(0.005, 0.035, 0.005),
+            location=(TRACK_X + WHEEL_WIDTH / 2.0 + 0.010, y_axle, AXLE_Z + WHEEL_RADIUS * 0.75),
+            material=mat_green
+        )
+        temp_objs.append(arr)
+        head = create_cylinder(
+            f"temp_head_r_{y_axle}",
+            radius=0.007,
+            depth=0.010,
+            location=(TRACK_X + WHEEL_WIDTH / 2.0 + 0.010, y_axle + 0.022, AXLE_Z + WHEEL_RADIUS * 0.75),
+            rotation=(math.radians(90), 0, 0),
+            material=mat_green
+        )
+        temp_objs.append(head)
+
+    # Left side: reverse rotation indicators (-Y)
+    for y_axle in (WHEELBASE_Y, -WHEELBASE_Y):
+        arr = create_cube(
+            f"temp_arrow_l_{y_axle}",
+            size=(0.005, 0.035, 0.005),
+            location=(-TRACK_X - WHEEL_WIDTH / 2.0 - 0.010, y_axle, AXLE_Z + WHEEL_RADIUS * 0.75),
+            material=mat_red
+        )
+        temp_objs.append(arr)
+        head = create_cylinder(
+            f"temp_head_l_{y_axle}",
+            radius=0.007,
+            depth=0.010,
+            location=(-TRACK_X - WHEEL_WIDTH / 2.0 - 0.010, y_axle - 0.022, AXLE_Z + WHEEL_RADIUS * 0.75),
+            rotation=(math.radians(-90), 0, 0),
+            material=mat_red
+        )
+        temp_objs.append(head)
+
+    cam_obj.location = (0.28, 0.16, 0.18)
+    point_camera_at(cam_obj, (0.0, 0.0, 0.040))
+    scene.render.filepath = out_path
+    bpy.ops.render.render(write_still=True)
+    print(f"Saved differential steering render: {out_path}")
+    sys.stdout.flush()
+
+    for obj in temp_objs:
+        bpy.data.objects.remove(obj, do_unlink=True)
+    print("Cleaned up differential steering indicator objects.")
+    sys.stdout.flush()
 
 def render_exploded_view(scene, cam_obj):
     """
     Renders an exploded assembly view showing mechanical relationships,
+    saves to both PREVIEWS_DIR and HARDWARE_RENDERS_DIR,
     then restores nominal component transforms.
     """
-    filename = "exploded_view.png"
-    out_path = os.path.join(PREVIEWS_DIR, filename)
-    print(f"Rendering exploded assembly view -> {out_path}...")
+    out_path_preview = os.path.join(PREVIEWS_DIR, "exploded_view.png")
+    out_path_final = os.path.join(HARDWARE_RENDERS_DIR, "final_exploded_assembly.png")
+    print(f"Rendering exploded assembly view -> {out_path_final}...")
     sys.stdout.flush()
 
     # Grab components to displace
@@ -1409,9 +1522,14 @@ def render_exploded_view(scene, cam_obj):
     # Point camera at exploded assembly
     cam_obj.location = (0.34, -0.34, 0.24)
     point_camera_at(cam_obj, (0.0, 0.0, 0.055))
-    scene.render.filepath = out_path
+
+    # Save to previews
+    scene.render.filepath = out_path_preview
     bpy.ops.render.render(write_still=True)
-    print(f"Saved exploded preview: {out_path}")
+    # Save to hardware renders
+    scene.render.filepath = out_path_final
+    bpy.ops.render.render(write_still=True)
+    print(f"Saved exploded previews: {out_path_preview} & {out_path_final}")
     sys.stdout.flush()
 
     # Restore original positions

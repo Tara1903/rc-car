@@ -26,7 +26,7 @@ Controls Front-Left Motor (`ACT-01_FL`) and Rear-Left Motor (`ACT-01_RL`).
 | **MOT-L04** | `DRV-01` Terminal `OUT4` | Motor Rear-Left Terminal (-) | â€” | Channel B Negative Motor Drive | Black | 0â€“6.0V PWM, up to 1.1A stall | **VERIFIED** |
 | **PWR-L01** | Central V+ Distribution Bus | `DRV-01` Screw Terminal `+12V` (VS) | — | Unswitched Motor Supply Rail | Red (20 AWG) | ~6.0V Nominal (4.4V–6.4V DC), up to 2.2A stall | **VERIFIED** |
 | **PWR-L02** | Central Star Ground Bus | `DRV-01` Screw Terminal `GND` | — | High-Current Motor Return | Black (20 AWG)| 0V Reference | **VERIFIED** |
-| **PWR-L03** | DC-DC Converter `OUT+` (5.0V Logic) | `DRV-01` Screw Terminal `+5V` | — | Regulated Logic Gate Supply | Cyan (22 AWG) | 5.00V target no-load, < 36 mA | **PROVISIONAL — PENDING CONVERTER IDENTIFICATION** |
+| **PWR-L03** | DC-DC Converter `OUT+` (5.0V Logic) | `DRV-01` Screw Terminal `+5V` | — | Regulated Logic Gate Supply | Cyan (22 AWG) | 5.00V target no-load, < 36 mA | **PROVISIONAL — BLOCKED (REGULATOR NOT SUITABLE OR NOT VERIFIED)** |
 
 *Note on Jumpers:*
 1. **`5V-EN` Jumper:** **REMOVED** on `DRV-01` to isolate internal 78M05 linear regulator and prevent reverse-feeding the 5.0V logic rail.
@@ -52,7 +52,7 @@ Controls Front-Right Motor (`ACT-01_FR`) and Rear-Right Motor (`ACT-01_RR`).
 | **MOT-R04** | `DRV-02` Terminal `OUT4` | Motor Rear-Right Terminal (-) | — | Channel B Negative Motor Drive | Black | 0–6.0V PWM, up to 1.1A stall | **VERIFIED** |
 | **PWR-R01** | Central V+ Distribution Bus | `DRV-02` Screw Terminal `+12V` (VS) | — | Unswitched Motor Supply Rail | Red (20 AWG) | ~6.0V Nominal (4.4V–6.4V DC), up to 2.2A stall | **VERIFIED** |
 | **PWR-R02** | Central Star Ground Bus | `DRV-02` Screw Terminal `GND` | — | High-Current Motor Return | Black (20 AWG)| 0V Reference | **VERIFIED** |
-| **PWR-R03** | DC-DC Converter `OUT+` (5.0V Logic) | `DRV-02` Screw Terminal `+5V` | — | Regulated Logic Gate Supply | Cyan (22 AWG) | 5.00V target no-load, < 36 mA | **PROVISIONAL — PENDING CONVERTER IDENTIFICATION** |
+| **PWR-R03** | DC-DC Converter `OUT+` (5.0V Logic) | `DRV-02` Screw Terminal `+5V` | — | Regulated Logic Gate Supply | Cyan (22 AWG) | 5.00V target no-load, < 36 mA | **PROVISIONAL — BLOCKED (REGULATOR NOT SUITABLE OR NOT VERIFIED)** |
 
 *Note on Jumpers:*
 1. **`5V-EN` Jumper:** **REMOVED** on `DRV-02` to isolate internal 78M05 linear regulator.
@@ -66,16 +66,18 @@ Controls Front-Right Motor (`ACT-01_FR`) and Rear-Right Motor (`ACT-01_RR`).
 > [!NOTE]
 > **NO POWER SWITCH INSTALLED**: The vehicle uses direct unswitched battery connections. Safe manual isolation is accomplished by unplugging the inline battery connector or removing one AA cell.
 >
-> **POWER ARCHITECTURE STATUS: BLOCKED — COMPONENT IDENTIFICATION REQUIRED**
-> The DC-DC converter topology is currently unverified from product photographs (two inductors do not prove SEPIC or auto buck-boost). All connections involving the converter are marked PROVISIONAL. Load regulation under motor inrush is unverified until physical bench measurement. Never claim 5.00V ± 0.05V stability under load without physical measurement.
+> **POWER ARCHITECTURE STATUS: BLOCKED — REGULATOR NOT SUITABLE OR NOT VERIFIED**
+> The ordered DC-DC converter is identified from Flipkart listing photographs as the **amiciSolar XL6019 module**.
+> Based on the manufacturer datasheet (XLSEMI XL6019: $V_{IN} = 5.0\text{V} - 40\text{V}$, UVLO $\approx 4.0\text{V}-4.5\text{V}$), this regulator is electrically unsuitable for a 4× AA alkaline pack that sags to $3.8\text{V}-4.5\text{V}$ under motor inrush current ($2.4\text{A}-4.8\text{A}$ across 4 TT motors). Furthermore, as a boost-topology module, it cannot buck $6.4\text{V}$ fresh cells down to $5.0\text{V}$.
+> All connections involving the converter remain **PROVISIONAL**. Load regulation under motor inrush is unverified until physical bench measurement. Never claim 5.00V ± 0.05V stability under load without physical measurement. If bench testing exhibits brownout, replace with a wide-input buck-boost ($V_{IN} \ge 2.5\text{V}$) or a dedicated 5V USB logic power bank.
 
 | Conn ID | Source Component & Terminal | Destination Component & Terminal | ESP32 GPIO | Function / Power Rail | Wire Color | Voltage / Current Rating | Status / Evidence |
 |---|---|---|:---:|---|---|---|:---:|
 | **PWR-01** | 4× AA Battery Tray Positive Lead | Central V+ Distribution Bus | — | Unswitched Raw Battery Rail | Red (20 AWG) | 4.4V–6.4V DC, 5A burst | **VERIFIED** |
 | **PWR-02** | 4× AA Battery Tray Negative Lead | Central Star Ground (GND) Bus | — | Main Battery Ground Return | Black (20 AWG)| 0V Reference | **VERIFIED** |
-| **PWR-03** | Central V+ Distribution Bus | DC-DC Converter Terminal `IN+` | — | DC-DC Converter Raw Supply | Red (20 AWG) | 4.4V–6.4V DC, ~1.5A peak | **PROVISIONAL — PENDING CONVERTER IDENTIFICATION** |
-| **PWR-04** | Central Star Ground Bus | DC-DC Converter Terminal `IN-` / `OUT-` | — | Converter Input & Output Return | Black (20 AWG)| 0V Reference | **PROVISIONAL — PENDING CONVERTER IDENTIFICATION** |
-| **PWR-05** | DC-DC Converter Terminal `OUT+` | ESP32 Header Pin `VIN` (5V Input) | — | Regulated Microcontroller Supply | Cyan (22 AWG) | 5.00V target no-load, ~250 mA peak | **PROVISIONAL — PENDING CONVERTER IDENTIFICATION** |
+| **PWR-03** | Central V+ Distribution Bus | DC-DC Converter Terminal `IN+` | — | DC-DC Converter Raw Supply | Red (20 AWG) | 4.4V–6.4V DC, ~1.5A peak | **PROVISIONAL — BLOCKED (REGULATOR NOT SUITABLE OR NOT VERIFIED)** |
+| **PWR-04** | Central Star Ground Bus | DC-DC Converter Terminal `IN-` / `OUT-` | — | Converter Input & Output Return | Black (20 AWG)| 0V Reference | **PROVISIONAL — BLOCKED (REGULATOR NOT SUITABLE OR NOT VERIFIED)** |
+| **PWR-05** | DC-DC Converter Terminal `OUT+` | ESP32 Header Pin `VIN` (5V Input) | — | Regulated Microcontroller Supply | Cyan (22 AWG) | 5.00V target no-load, ~250 mA peak | **PROVISIONAL — BLOCKED (REGULATOR NOT SUITABLE OR NOT VERIFIED)** |
 | **PWR-06** | Central Star Ground Bus | ESP32 Header Pin `GND` | — | Microcontroller Reference Ground | Black (22 AWG)| 0V Reference | **VERIFIED** |
 | **TEL-01** | Central V+ Distribution Bus | Resistor R1 (100 kΩ) Side A | — | High Side of Voltage Divider | Red (24 AWG) | 4.4V–6.4V DC | **VERIFIED** |
 | **TEL-02** | Resistor R1 / R2 Center Tap | ESP32 Header Pin 34 | **GPIO 34** | Attenuated ADC Telemetry Input | Cyan (26 AWG) | 0.73V–1.07V DC (Safe < 3.3V) | **VERIFIED** |

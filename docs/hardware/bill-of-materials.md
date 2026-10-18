@@ -23,7 +23,7 @@
 | **ACT-02** | Drivetrain | 66 mm Rubber Tires & Wheels | Standard Robotic Wheel Kit | 66 mm OD Ã— 26 mm width, black natural rubber chevron tread, yellow 5-spoke ABS rim | 4 | **VERIFIED** | Chevron tread profile and 5-spoke yellow hub verified in photo |
 | **DRV-01** | Electronics | L298N Dual H-Bridge Motor Driver Module (Left) | STMicroelectronics L298N Breakout | Red FR-4 PCB (43.5 Ã— 43.5 mm), Multiwatt15 L298N IC, finned heatsink, 78M05 regulator, screw terminals | 1 | **VERIFIED** | Controls Front-Left and Rear-Left motors (Channels A & B) |
 | **DRV-02** | Electronics | L298N Dual H-Bridge Motor Driver Module (Right) | STMicroelectronics L298N Breakout | Identical red L298N module, independent left/right speed and direction control | 1 | **VERIFIED** | Controls Front-Right and Rear-Right motors (Channels A & B) |
-| **PWR-01** | Power | Adjustable DC-DC Converter (Dual Inductor) | amiciSolar / XLSEMI / Generic Module | Blue PCB (~50 × 25 mm), 2× shielded power inductors ("330" = 33 µH), 3296W trimpot, 2× electrolytic caps. Provisional target: **5.00V logic rail (no-load)**. Dynamic load regulation unverified. | 1 | **BLOCKED — COMPONENT IDENTIFICATION REQUIRED** | PROVISIONAL POWER DESIGN. Two inductors do not prove SEPIC or auto buck-boost topology (could be boost with LC ripple filter or dual buck). IC markings illegible in photo. Mark connections provisional until IC number verified under magnification and bench tested. Never claim ±0.05V stability under load without physical measurements. |
+| **PWR-01** | Power | Adjustable DC-DC Converter (amiciSolar XL6019) | amiciSolar / XLSEMI XL6019 Module | Blue PCB (~50 × 25 mm), 2× shielded power inductors ("330" = 33 µH), 3296W trimpot, 2× electrolytic caps. Provisional target: **5.00V logic rail (no-load)**. $V_{IN} = 5.0\text{V} - 40\text{V}$, UVLO $\approx 4.0\text{V}-4.5\text{V}$. | 1 | **BLOCKED — REGULATOR NOT SUITABLE OR NOT VERIFIED** | Identified from Flipkart listing (`media_1792340893363_d467156d.png`). Incompatible with 4× AA alkaline pack that sags to $3.8\text{V}-4.5\text{V}$ under motor inrush. Boost topology cannot step down $6.4\text{V}$ fresh cells. Connections remain PROVISIONAL. If bench test fails, replace with wide-input buck-boost ($V_{IN} \ge 2.5\text{V}$) or USB power bank. |
 | **PWR-02** | Power | 4-Cell AA Cylindrical Battery Holder | Standard Keystone style holder | 4-slot series AA battery tray for ordinary AA Alkaline cells (Duracell / Eveready). 6.0V nominal (6.4V fresh open-circuit, 4.4V cutoff). Significant dynamic voltage sag under inrush ($R_i \approx 0.6 - 1.2\,\Omega$). Direct unswitched wiring. **NO power switch installed** | 1 | **VERIFIED** | Direct unswitched battery connection; manual disconnect required (unplug connector or remove one cell). Distinct from NiMH (1.2V/cell, 4.8V pack nominal). |
 | **CTL-01** | Controller | ESP32 Development Board (30-Pin) | NodeMCU-32S / Prakti DevKit v1 | 30-pin dual-row 2.54 mm headers, ESP-WROOM-32 module, CP2102 USB bridge, micro-USB port, EN/BOOT buttons | 1 | **VERIFIED** | Photo verifies 30-pin board, CP2102 chip, metal RF shield, and antenna |
 | **SNS-01** | Telemetry | Battery Voltage Divider | Precision Metal Film Resistors | R1 = 100 kΩ (1%), R2 = 20 kΩ (1%) forming 6:1 division ratio tapped into GPIO 34 (6.0V in → 1.00V at ADC; 6.4V max → 1.067V) | 1 | **VERIFIED** | Configured in firmware `config.h`; requires multimeter calibration confirmation |
@@ -34,25 +34,23 @@
 
 ## 2. Unresolved Component Identifications & Investigation
 
-### 2.1 Adjustable DC-DC Converter (`PWR-01`)
-- **Status:** **BLOCKED — COMPONENT IDENTIFICATION REQUIRED**
-- **Visual Evidence:** Blue rectangular PCB, two large surface-mount shielded ferrite drum inductors labeled "330" ($33\,\mu\text{H}$), two radial aluminum electrolytic capacitors with silver tops, one blue Bourns-style 3296W multi-turn cermet potentiometer with brass adjustment screw at top-right, and corner through-hole solder pads (IN+, IN-, OUT+, OUT-).
-- **Topology Analysis & Engineering Evidence Gate:**
-  - In product photos (`media_...c057a99d.png`), the surface markings on the primary switching IC are completely illegible due to lighting reflection, angle, and resolution.
-  - **Two inductors are NOT sufficient proof of SEPIC or automatic buck-boost topology.** A module with two inductors could be:
-    1. A SEPIC converter (single active switch, coupling capacitor, two inductors).
-    2. An inverting or non-inverting buck-boost converter.
-    3. A boost (step-up) converter with a secondary $LC$ ripple suppression filter.
-    4. A dual-output or two-stage regulator.
-  - If the module is a boost-only converter with an LC filter, its output voltage will always be equal to or greater than the battery pack voltage ($V_{out} \ge V_{in}$). If fed with 6.4V from a fresh 4× AA alkaline pack, it would pass ~6.0V+ through to the ESP32 `VIN` pin without regulation, potentially overheating the onboard 3.3V LDO!
-  - Conversely, if it is a true SEPIC or auto buck-boost, it can step up or down across the full battery discharge curve ($3.8\text{V} - 6.4\text{V}$).
-- **Classification:** **PROVISIONAL POWER DESIGN — COMPONENT IDENTIFICATION REQUIRED**.
-- **Physical Verification Gate (Mandatory on Hardware Arrival):**
-  1. Inspect the main IC markings under magnification (e.g. XL6009, XL6019, FP5139, LM2577, or LM2596).
-  2. Verify circuit continuity between inductors and switching nodes to confirm topology.
-  3. Bench-test no-load output across an input sweep of $3.5\,\text{V}$ to $6.5\,\text{V}$.
-  4. Perform loaded step-transient bench test (0 to 300 mA load) to measure line/load regulation. **Never claim 5.00 V ± 0.05 V stability under load without physical measurements supporting that claim.**
-- **Safe Working Protocol:** All power connections involving `PWR-01` (`PWR-02, 06, 07, 11, 12, 13`) remain **provisional**. Before connecting to ESP32 `VIN` or L298N logic `+5V`, trim the 3296W potentiometer with a digital multimeter to **5.00 V DC unloaded**.
+### 2.1 Adjustable DC-DC Converter (`PWR-01`) — amiciSolar XL6019
+- **Status:** **BLOCKED — REGULATOR NOT SUITABLE OR NOT VERIFIED**
+- **Identification:** Confirmed from the provided Flipkart listing (`media_1792340893363_d467156d.png`) as the **amiciSolar XL6019 DC-DC Converter Module**.
+- **Datasheet Specifications (XLSEMI XL6019):**
+  - **Topology:** 5A 400kHz Step-Up (Boost) / Flyback switching regulator.
+  - **Operating Input Voltage:** $5.0\,\text{V}$ to $40\,\text{V}$ (Absolute min $V_{IN} = 5.0\,\text{V}$).
+  - **Under-Voltage Lockout (UVLO):** Internal threshold $\approx 4.0\,\text{V}$ to $4.5\,\text{V}$.
+  - **Output Voltage Range:** Configurable up to $40\,\text{V}$ (step-up only).
+  - **Continuous Switch Current:** Up to 5.0 A.
+- **Electrical Incompatibility & Safety Hazard with 4× AA Alkaline Pack:**
+  1. **Low-Voltage Dropout Under Inrush:** Under 4-motor inrush current ($2.4\,\text{A} - 4.8\,\text{A}$), a 4× AA alkaline battery pack ($R_{i,pack} \approx 0.6\,\Omega - 1.2\,\Omega$) sags severely to $3.8\,\text{V} - 4.5\,\text{V}$. Because the XL6019 requires $V_{IN} \ge 5.0\,\text{V}$, the converter will drop out of regulation or enter UVLO shutdown, causing brownout reboots of the ESP32 microcontroller during aggressive acceleration or skid-steering.
+  2. **Pass-Through Overvoltage Risk:** As a boost topology converter with an internal diode/inductor direct path, $V_{OUT}$ cannot be regulated lower than $V_{IN}$. When fresh alkaline cells produce $6.2\,\text{V} - 6.4\,\text{V}$, the converter passes the battery voltage directly to the output ($V_{OUT} \approx V_{IN} - V_{diode} \approx 5.8\,\text{V} - 6.0\,\text{V}$), bypassing 5.00V regulation and stressing the ESP32 onboard LDO.
+- **Classification:** **BLOCKED — REGULATOR NOT SUITABLE OR NOT VERIFIED**.
+- **Safe Working Protocol:**
+  - All power connections involving `PWR-01` (`PWR-02, 06, 07, 11, 12, 13`) remain strictly **PROVISIONAL**.
+  - During Stage 2 commissioning, bench-test the converter under load. Never connect `OUT+` to ESP32 `VIN` without multimeter verification.
+  - **Recommended Hardware Replacement:** If bench testing exhibits brownout under load or fail-to-buck at 6.4V, replace with a wide-input automatic buck-boost/SEPIC converter ($V_{IN} \ge 2.5\,\text{V}$, e.g. FP5139, LTC3111, TPS63060) or power the ESP32 logic via an isolated 5V USB power bank.
 
 ### 2.2 Battery Chemistry & Pack Configuration (`PWR-02`)
 - **Visual Evidence:** Black plastic 4-slot battery tray with internal leaf-spring contacts and red/black wire leads.

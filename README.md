@@ -62,7 +62,7 @@ Robo Racer is a production-grade native Android application and ESP32 embedded f
   - 4× AA alkaline battery pack (Duracell / Eveready: ~6.0V nominal, 6.4V fresh open-circuit max, 4.4V cutoff threshold). Subject to dynamic voltage sag under 4-motor inrush due to internal resistance ($R_i \approx 0.6\,\Omega - 1.2\,\Omega$).
   - Direct unswitched battery positive rail supplying both L298N motor drivers (`+12V` terminals) and DC-DC converter input (`IN+`).
   - **No master power switch installed**: Safe manual isolation by unplugging the inline battery connector or removing one AA cell.
-  - Provisional DC-DC converter (Unverified topology: BLOCKED — COMPONENT IDENTIFICATION REQUIRED). Calibrated to deliver **5.00V no-load** logic supply to ESP32 `VIN` and both L298N `+5V` terminals (with onboard `5V-EN` jumpers removed). Dynamic load regulation during motor inrush is unverified until physical bench measurement.
+  - Provisional DC-DC converter (amiciSolar XL6019: **BLOCKED — REGULATOR NOT SUITABLE OR NOT VERIFIED**). XLSEMI XL6019 datasheet mandates $V_{IN} \ge 5.0\text{V}$, whereas 4× AA alkaline cells sag to $3.8\text{V}-4.5\text{V}$ under motor inrush, risking brownout reboots. Boost topology cannot buck $6.4\text{V}$ fresh cells. Calibrated to **5.00V no-load** logic supply to ESP32 `VIN` and both L298N `+5V` terminals (with onboard `5V-EN` jumpers removed) as a provisional setup. If bench testing exhibits brownout, replace with a wide-input buck-boost ($V_{IN} \ge 2.5\text{V}$) or an isolated 5V USB logic power bank.
 - **Battery Voltage Divider:**
   - $R_1 = 100\,\text{k}\Omega$, $R_2 = 20\,\text{k}\Omega$ (Divider ratio: $6.0:1$).
   - Connected to `GPIO 34` (ADC1 Channel 6).

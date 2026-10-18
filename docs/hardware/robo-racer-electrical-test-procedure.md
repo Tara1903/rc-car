@@ -1,7 +1,7 @@
 # ROBO RACER 4WD — ELECTRICAL COMMISSIONING & BENCH TEST PROCEDURE
 
-**Document Revision:** v1.2 — Physical Delivery Baseline
-**Target Hardware:** 4WD Robotic Car Kit | 4× AA Battery Pack (~6.0V Nominal) | SEPIC Auto Buck-Boost DC-DC Module | 2× L298N Drivers | ESP32 DevKit V1 (30-pin) | 4× TT DC Geared Motors
+**Document Revision:** v1.3 — Final Engineering Baseline
+**Target Hardware:** 4WD Robotic Car Kit | 4× AA Battery Pack (~6.0V Nominal) | amiciSolar XL6019 DC-DC Module (BLOCKED — REGULATOR NOT SUITABLE OR NOT VERIFIED) | 2× L298N Drivers | ESP32 DevKit V1 (30-pin) | 4× TT DC Geared Motors
 **Related Documents:**
 - [`robo-racer-full-wiring.svg`](robo-racer-full-wiring.svg) (Master Vector Schematic)
 - [`robo-racer-wire-by-wire.md`](robo-racer-wire-by-wire.md) (Wire-by-Wire Pinout Table)
@@ -75,18 +75,20 @@
 
 ### STAGE 2: DC-DC Identification & Output Calibration (Multimeter Prerequisite)
 
-*Objective: Inspect switching controller markings under magnification, establish true topology, and adjust no-load output to 5.00 V.*
-*Status: **[PROVISIONAL BENCH CHECK — METROLOGY GATE (BLOCKED — COMPONENT IDENTIFICATION REQUIRED)]***
+*Objective: Inspect switching controller markings under magnification, verify electrical topology, and characterize output under load.*
+*Status: **[PROVISIONAL BENCH CHECK — METROLOGY GATE (BLOCKED — REGULATOR NOT SUITABLE OR NOT VERIFIED)]***
 
 > [!CRITICAL]
 > **DISCONNECT WIRE `PWR-11` (ESP32 VIN), `PWR-12` (Left L298N +5V), AND `PWR-13` (Right L298N +5V) BEFORE PERFORMING THIS STEP.**
-> Do NOT connect the converter to sensitive logic until its topology and no-load output voltage are verified with a digital multimeter.
+> The ordered converter is identified from listing photos as the **amiciSolar XL6019**.
+> **Electrical Incompatibility Warning:** XLSEMI XL6019 datasheet specifies $V_{IN} \ge 5.0\text{V}$, whereas 4× AA alkaline cells sag to $3.8\text{V}-4.5\text{V}$ under motor inrush, risking logic brownouts. Furthermore, as a boost-topology module, it cannot buck $6.4\text{V}$ fresh cells down to $5.0\text{V}$.
+> Do NOT connect the converter to sensitive logic until its topology, no-load output voltage, and step-load stability are verified with a digital multimeter.
 
 1. **Physical Component Inspection Under Magnification:**
    - Inspect the primary switching IC markings on the blue converter board using a magnifying glass or macro camera with bright angled lighting.
-   - Record the part number (e.g. XL6009, XL6019, FP5139, LM2577, or LM2596).
-   - Trace PCB copper connections: Check whether both inductors are active in a SEPIC/buck-boost circuit (with an intermediate coupling capacitor) or if Inductor 2 is merely an output $LC$ post-filter on a standard boost or buck converter.
-   - **Verification Gate:** If the module is a boost-only converter, its output cannot step down below input voltage ($V_{out} \ge V_{in}$). Connecting it to a fresh 6.4V alkaline pack would pass ~6.4V through to the ESP32 `VIN` pin. Only proceed if the module demonstrates true step-down capability when input exceeds 5.0V.
+   - Confirm part number (e.g. XL6019).
+   - Trace PCB copper connections: Check whether both inductors are active in a SEPIC/buck-boost circuit or if Inductor 2 is merely an output $LC$ post-filter on a standard boost regulator.
+   - **Verification Gate:** If the module is a boost-only converter, its output cannot step down below input voltage ($V_{out} \ge V_{in}$). Connecting it to a fresh 6.4V alkaline pack would pass ~6.0V+ through to the ESP32 `VIN` pin without regulation. Only proceed if the module demonstrates true step-down capability when input exceeds 5.0V. If bench testing exhibits dropout under load or fail-to-buck at 6.4V, replace with a wide-input buck-boost ($V_{IN} \ge 2.5\text{V}$) or an isolated 5V power bank.
 2. Connect DC-DC Converter `IN+` to battery positive and `IN-` to star ground.
 3. Insert 4 fresh AA alkaline batteries into the tray (Duracell / Eveready).
 4. Measure battery terminal voltage with DMM across `IN+` and `IN-`:

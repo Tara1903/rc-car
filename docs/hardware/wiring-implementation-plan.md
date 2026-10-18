@@ -37,9 +37,9 @@ Every electrical and mechanical attribute is categorized using the authoritative
 | **Battery Source** | Cell Chemistry | 4× AA Alkaline (Eveready / Duracell) | **ESTIMATED** | Supplied photo shows 4-slot cylindrical holder. 4× 1.5V = 6.0V nominal (6.4V fresh, 4.4V cutoff). Legacy 3S Li-ion assumptions purged. |
 | **Battery Holder** | Series Continuity | 4 cells in series (~6V) | **UNCONFIRMED** | Must verify with multimeter continuity before battery insertion to ensure no parallel/split taps exist. |
 | **Power Switch** | Installed Switch | **NONE INSTALLED** | **VERIFIED** | User explicitly confirmed no master switch is available. Must establish safe manual disconnect (pull one cell or unplug battery terminal). |
-| **DC-DC Converter** | Magnetic Circuit | 2× Shielded Inductors ("330" = 33 µH) | **VERIFIED** | Clearly visible in product listing photo (`media_...c057a99d.png`). |
-| **DC-DC Converter** | Circuit Topology | Topology Unverified (Provisional) | **BLOCKED — COMPONENT IDENTIFICATION REQUIRED** | Two visible inductors do NOT prove SEPIC or auto buck-boost topology (could be boost with LC post-filter or dual buck). IC markings illegible in photo. Mark connections provisional until IC number is verified under magnification. |
-| **DC-DC Converter** | Switching Controller IC | Unknown Switching Controller IC | **UNCONFIRMED** | Specific IC package marking unconfirmed from photos. Must inspect under magnification on arrival and bench-test line/load regulation. Never claim 5.00V ± 0.05V under load without measurements. |
+| **DC-DC Converter** | Magnetic Circuit | 2× Shielded Inductors ("330" = 33 µH) | **VERIFIED** | Clearly visible in product listing photo (`media_1792340893405_c057a99d.png`). |
+| **DC-DC Converter** | Component Model | amiciSolar XL6019 Module | **VERIFIED** | Confirmed from Flipkart product listing photograph (`media_1792340893363_d467156d.png`). |
+| **DC-DC Converter** | Electrical Compatibility | Incompatible with 4× AA Alkaline pack | **BLOCKED — REGULATOR NOT SUITABLE OR NOT VERIFIED** | XLSEMI XL6019 datasheet mandates $V_{IN} \ge 5.0\text{V}$, UVLO $\approx 4.0\text{V}-4.5\text{V}$. 4× AA alkaline pack sags to $3.8\text{V}-4.5\text{V}$ under motor inrush. Boost topology cannot step down $6.4\text{V}$ fresh cells. Connections remain PROVISIONAL. If bench test fails, replace with wide-range buck-boost ($V_{IN} \ge 2.5\text{V}$) or isolated 5V power bank. |
 | **L298N Modules** | Board Count & Channels | Exactly 2 modules, 4 discrete channels | **VERIFIED** | Driver 1: FL & RL; Driver 2: FR & RR. ENA/ENB jumpers removed for ESP32 LEDC PWM. Firmware drives each side in tandem. |
 | **L298N Logic Power** | `5V-EN` Jumper State | **MUST BE REMOVED** on both boards | **VERIFIED** | When external 5.0V is supplied from DC-DC converter into L298N +5V screw terminals, the onboard 78M05 regulator must be disconnected. |
 | **Battery Telemetry** | Divider Voltage Range | $V_{\text{pin}} = V_{\text{batt}} \times \frac{20\,\text{k}\Omega}{100\,\text{k}\Omega + 20\,\text{k}\Omega}$ | **VERIFIED** | At 6.4V max, $V_{\text{pin}} = 1.067\,\text{V}$ (well within ESP32 0–3.3V ADC range). Firmware thresholds updated from 3S to 4× AA. |
@@ -59,14 +59,15 @@ Every electrical and mechanical attribute is categorized using the authoritative
   - Theoretical stall burst current: $3.2\,\text{A} - 4.8\,\text{A}$ ($V_{\text{sag}}$ drops pack terminal voltage down to $\sim 3.0\,\text{V} - 3.8\,\text{V}$).
 - **L298N Bipolar Darlington Drop:** Internal transistors drop $V_{CE(sat)} \approx 1.8\,\text{V} - 2.5\,\text{V}$, leaving only $\sim 2.0\,\text{V} - 2.5\,\text{V}$ across the TT motor terminals under load and dissipating up to $3\,\text{W}$ per driver heatsink.
 
-### 3.2 DC-DC Converter Provisional Status & Verification Gate
-- **Topology Uncertainty:** The blue board features two inductors, but this alone does not establish whether it is a SEPIC, auto buck-boost, boost converter with LC filter, or dual buck.
-- **Why Verification is Critical:** If the board is a boost-only converter with an LC filter, it cannot step down voltage when input is 6.4V, passing excessive voltage to the ESP32 `VIN` pin. Conversely, if it is a buck-only converter, it will drop out when the battery sags below 5.5V under motor inrush.
-- **Status Classification:** **BLOCKED — COMPONENT IDENTIFICATION REQUIRED**. Power design is provisionally retained for documentation, but all affected connections are marked provisional.
+### 3.2 DC-DC Converter (amiciSolar XL6019) Electrical Safety Gate
+- **Topology & Limits:** The ordered module is identified as the amiciSolar XL6019. Datasheet specifies operating input range $V_{IN} = 5.0\,\text{V} - 40\,\text{V}$ with UVLO $\approx 4.0\,\text{V} - 4.5\,\text{V}$.
+- **Brownout & Reset Risk:** During motor startup or skid steering, battery voltage sags to $3.8\,\text{V} - 4.5\,\text{V}$, dropping below regulator minimum input, causing logic power dropout and ESP32 reboot.
+- **Pass-Through Overvoltage Risk:** Boost topology cannot buck $6.2\,\text{V} - 6.4\,\text{V}$ fresh cells down to $5.0\,\text{V}$, passing raw battery voltage to ESP32 `VIN`.
+- **Status Classification:** **BLOCKED — REGULATOR NOT SUITABLE OR NOT VERIFIED**. Power design is provisionally retained for documentation, but all affected connections are marked provisional.
 - **Physical Commissioning Gate:**
-  1. Inspect switching IC markings under magnification before wiring.
-  2. Bench-test no-load output across an input sweep ($3.5\text{V} - 6.5\text{V}$) and trim 3296W trimpot to **5.00 V no-load**.
-  3. Perform dynamic step-load bench testing. **Never claim 5.00 V ± 0.05 V stability under load without physical measurement data.**
+  1. Measure no-load output across an input sweep ($3.5\text{V} - 6.5\text{V}$) on bench DC power supply.
+  2. Perform dynamic step-load bench testing. **Never claim 5.00 V ± 0.05 V stability under load without physical measurement data.**
+  3. If bench testing confirms dropout under 4-motor load or overvoltage pass-through at 6.4V, replace with wide-input buck-boost ($V_{IN} \ge 2.5\text{V}$) or separate 5V USB logic power bank.
 
 ---
 

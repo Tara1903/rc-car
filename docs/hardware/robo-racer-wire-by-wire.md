@@ -1,13 +1,13 @@
 # ROBO RACER 4WD — BEGINNER-FRIENDLY WIRE-BY-WIRE INTERCONNECT TABLE
 
-**Document Revision:** v1.3 — Post-Audit Baseline
-**Hardware Reference:** 4× AA Alkaline Battery Pack (Direct Unswitched) | Provisional DC-DC Converter (Unverified Topology; BLOCKED — COMPONENT IDENTIFICATION REQUIRED) | 2× L298N Drivers | ESP32 DevKit V1 (30-pin) | 4× TT DC Geared Motors
+**Document Revision:** v1.4 — Final Engineering Baseline
+**Hardware Reference:** 4× AA Alkaline Battery Pack (Direct Unswitched) | amiciSolar XL6019 DC-DC Module (BLOCKED — REGULATOR NOT SUITABLE OR NOT VERIFIED) | 2× L298N Drivers | ESP32 DevKit V1 (30-pin) | 4× TT DC Geared Motors
 **Related Vector Schematic:** [`robo-racer-full-wiring.svg`](robo-racer-full-wiring.svg)
 **Safety Classification Key:**
 - **[VERIFIED]**: Confirmed by firmware definitions (`config.h`), schematic netlists, and physical pinouts.
 - **[MEASURED]**: Requires direct digital multimeter measurement before connection.
 - **[ESTIMATED]**: Calculated nominal values based on 4× AA series alkaline chemistry (6.0V nominal, 6.4V fresh, 4.4V cutoff).
-- **[PROVISIONAL — PENDING CONVERTER IDENTIFICATION]**: Unverified circuit connection until switching IC markings are identified under magnification and bench tested for load regulation.
+- **[PROVISIONAL — BLOCKED (REGULATOR NOT SUITABLE OR NOT VERIFIED)]**: Provisional circuit connection. XL6019 datasheet mandates $V_{IN} \ge 5.0\text{V}$, whereas 4× AA alkaline pack sags to $3.8\text{V}-4.5\text{V}$ under motor inrush. Boost topology cannot step down $6.4\text{V}$ fresh cells.
 - **[PENDING PHYSICAL DELIVERY]**: Real-world bench test required once physical hardware arrives.
 
 ---
@@ -28,18 +28,18 @@
 | Wire ID | Source Component & Terminal | Destination Component & Terminal | Wire Gauge / Type | Color | Functional Purpose | Multimeter Pre-Connection Verification Step | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | **PWR-01** | 4× AA Tray Positive (+) lead | Central V+ Distribution Bus / Barrier Strip | 20–22 AWG Stranded | **Red** | Unswitched raw battery positive rail (~6.0V nominal) | Measure with DMM in DC Volts mode across battery leads: 4× fresh alkaline must read **6.0V to 6.4V**. | **[MEASURED]** |
-| **PWR-02** | Central V+ Distribution Bus | DC-DC Converter Terminal `IN+` | 20–22 AWG Stranded | **Red** | DC-DC converter raw input supply | DMM continuity check from battery positive to `IN+`: < 0.2 Ω. | **[PROVISIONAL — PENDING CONVERTER IDENTIFICATION]** |
+| **PWR-02** | Central V+ Distribution Bus | DC-DC Converter Terminal `IN+` | 20–22 AWG Stranded | **Red** | DC-DC converter raw input supply | DMM continuity check from battery positive to `IN+`: < 0.2 Ω. | **[PROVISIONAL — BLOCKED (REGULATOR NOT SUITABLE OR NOT VERIFIED)]** |
 | **PWR-03** | Central V+ Distribution Bus | Left L298N (#1) Terminal `+12V` (VS) | 20–22 AWG Stranded | **Red** | Motor supply rail for Left Drivetrain (FL & RL motors) | Check resistance between `+12V` and `GND` before powering: must be > 10 kΩ (not shorted). | **[VERIFIED]** |
 | **PWR-04** | Central V+ Distribution Bus | Right L298N (#2) Terminal `+12V` (VS) | 20–22 AWG Stranded | **Red** | Motor supply rail for Right Drivetrain (FR & RR motors) | Check resistance between `+12V` and `GND` before powering: must be > 10 kΩ (not shorted). | **[VERIFIED]** |
 | **PWR-05** | 4× AA Tray Negative (-) lead | Central Star Ground (GND) Bus Point | 20–22 AWG Stranded | **Black** | Main system battery ground return | Measure continuity from battery negative terminal to star bus: < 0.2 Ω. | **[MEASURED]** |
-| **PWR-06** | Central Star Ground Bus | DC-DC Converter Terminal `IN-` | 20–22 AWG Stranded | **Black** | DC-DC converter input ground return | Verify direct low-resistance connection to star point (< 0.2 Ω). | **[PROVISIONAL — PENDING CONVERTER IDENTIFICATION]** |
-| **PWR-07** | DC-DC Converter Terminal `OUT-` | Central Star Ground Bus | 20–22 AWG Stranded | **Black** | Regulated logic return to star ground | Check continuity between `IN-` and `OUT-` on converter (most modules share common ground plane). | **[PROVISIONAL — PENDING CONVERTER IDENTIFICATION]** |
+| **PWR-06** | Central Star Ground Bus | DC-DC Converter Terminal `IN-` | 20–22 AWG Stranded | **Black** | DC-DC converter input ground return | Verify direct low-resistance connection to star point (< 0.2 Ω). | **[PROVISIONAL — BLOCKED (REGULATOR NOT SUITABLE OR NOT VERIFIED)]** |
+| **PWR-07** | DC-DC Converter Terminal `OUT-` | Central Star Ground Bus | 20–22 AWG Stranded | **Black** | Regulated logic return to star ground | Check continuity between `IN-` and `OUT-` on converter (most modules share common ground plane). | **[PROVISIONAL — BLOCKED (REGULATOR NOT SUITABLE OR NOT VERIFIED)]** |
 | **PWR-08** | Left L298N (#1) Terminal `GND` | Central Star Ground Bus | 20–22 AWG Stranded | **Black** | Left motor driver high-current ground return | Inspect mechanical tightness in screw terminal; verify low impedance (< 0.2 Ω). | **[VERIFIED]** |
 | **PWR-09** | Right L298N (#2) Terminal `GND` | Central Star Ground Bus | 20–22 AWG Stranded | **Black** | Right motor driver high-current ground return | Inspect mechanical tightness in screw terminal; verify low impedance (< 0.2 Ω). | **[VERIFIED]** |
 | **PWR-10** | ESP32 DevKit Board Pin `GND` | Central Star Ground Bus | 22–24 AWG Stranded (Dupont-to-bus) | **Black** | Microcontroller reference ground | Verify continuity from ESP32 GND pin to Star Ground block (< 0.3 Ω). | **[VERIFIED]** |
-| **PWR-11** | DC-DC Converter Terminal `OUT+` | ESP32 DevKit Pin `VIN` (5V Input) | 22 AWG Stranded (Dupont-to-bare) | **Cyan / Red** | Regulated 5.00V supply to ESP32 onboard LDO | **CRITICAL:** Connect multimeter to `OUT+` and `OUT-`. Adjust 3296W trimpot until voltage reads **5.00V no-load**. Do NOT plug into ESP32 until verified! Stability under motor sag is unverified until physical bench test. | **[PROVISIONAL — PENDING CONVERTER IDENTIFICATION]** |
-| **PWR-12** | DC-DC Converter Terminal `OUT+` (or 5V Bus) | Left L298N (#1) Terminal `+5V` | 22–24 AWG Stranded | **Cyan / Blue** | Regulated 5.00V logic supply for Left L298 internal gates | Verify Left L298N **`5V-EN` jumper is REMOVED** before making this connection! | **[PROVISIONAL — PENDING CONVERTER IDENTIFICATION]** |
-| **PWR-13** | DC-DC Converter Terminal `OUT+` (or 5V Bus) | Right L298N (#2) Terminal `+5V` | 22–24 AWG Stranded | **Cyan / Blue** | Regulated 5.00V logic supply for Right L298 internal gates | Verify Right L298N **`5V-EN` jumper is REMOVED** before making this connection! | **[PROVISIONAL — PENDING CONVERTER IDENTIFICATION]** |
+| **PWR-11** | DC-DC Converter Terminal `OUT+` | ESP32 DevKit Pin `VIN` (5V Input) | 22 AWG Stranded (Dupont-to-bare) | **Cyan / Red** | Regulated 5.00V supply to ESP32 onboard LDO | **CRITICAL:** Connect multimeter to `OUT+` and `OUT-`. Adjust 3296W trimpot until voltage reads **5.00V no-load**. Do NOT plug into ESP32 until verified! Stability under motor sag is unverified until physical bench test. | **[PROVISIONAL — BLOCKED (REGULATOR NOT SUITABLE OR NOT VERIFIED)]** |
+| **PWR-12** | DC-DC Converter Terminal `OUT+` (or 5V Bus) | Left L298N (#1) Terminal `+5V` | 22–24 AWG Stranded | **Cyan / Blue** | Regulated 5.00V logic supply for Left L298 internal gates | Verify Left L298N **`5V-EN` jumper is REMOVED** before making this connection! | **[PROVISIONAL — BLOCKED (REGULATOR NOT SUITABLE OR NOT VERIFIED)]** |
+| **PWR-13** | DC-DC Converter Terminal `OUT+` (or 5V Bus) | Right L298N (#2) Terminal `+5V` | 22–24 AWG Stranded | **Cyan / Blue** | Regulated 5.00V logic supply for Right L298 internal gates | Verify Right L298N **`5V-EN` jumper is REMOVED** before making this connection! | **[PROVISIONAL — BLOCKED (REGULATOR NOT SUITABLE OR NOT VERIFIED)]** |
 
 ---
 

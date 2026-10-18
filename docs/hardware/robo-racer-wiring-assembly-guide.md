@@ -1,7 +1,7 @@
 # ROBO RACER 4WD — PHYSICAL WIRING & ASSEMBLY GUIDE
 
-**Document Revision:** v1.3 — Post-Audit Baseline
-**Hardware Target:** 4WD Robotic Car Kit | 4× AA Alkaline Battery Pack (Direct Unswitched) | Provisional DC-DC Converter (Unverified Topology; BLOCKED — COMPONENT IDENTIFICATION REQUIRED) | 2× L298N Motor Drivers | ESP32 DevKit V1 (30-pin) | 4× TT DC Geared Motors
+**Document Revision:** v1.4 — Final Engineering Baseline
+**Hardware Target:** 4WD Robotic Car Kit | 4× AA Alkaline Battery Pack (Direct Unswitched) | amiciSolar XL6019 DC-DC Module (BLOCKED — REGULATOR NOT SUITABLE OR NOT VERIFIED) | 2× L298N Motor Drivers | ESP32 DevKit V1 (30-pin) | 4× TT DC Geared Motors
 **Related Documents:**
 - [`robo-racer-full-wiring.svg`](robo-racer-full-wiring.svg) (Master Vector Schematic)
 - [`robo-racer-wire-by-wire.md`](robo-racer-wire-by-wire.md) (Wire-by-Wire Pinout Table)
@@ -87,7 +87,7 @@ Each red L298N motor driver board comes from the factory with three black shunt 
 
 > [!IMPORTANT]
 > **Why `5V-EN` must be REMOVED:**
-> When the 5V-EN jumper is present, the L298N's internal 78M05 linear regulator attempts to produce 5.0V from the motor supply rail. However, we are supplying regulated 5.00V from the SEPIC DC-DC converter directly into the `+5V` terminal. If the jumper is left installed, two independent voltage regulators will fight each other on the same rail, causing excessive heating, back-feeding, and regulator destruction!
+> When the 5V-EN jumper is present, the L298N's internal 78M05 linear regulator attempts to produce 5.0V from the motor supply rail. However, we are supplying regulated 5.00V from the external DC-DC converter directly into the `+5V` terminal. If the jumper is left installed, two independent voltage regulators will fight each other on the same rail, causing excessive heating, back-feeding, and regulator destruction!
 >
 > **Why `ENA` and `ENB` jumpers must be REMOVED:**
 > The factory jumpers hard-wire the H-bridge enables to logic HIGH (+5V). If left in place, the motors can only run at 100% full speed or full stop; speed ramping, reverse dwell, and smooth cornering PWM control will NOT work.
