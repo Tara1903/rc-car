@@ -1,12 +1,13 @@
 # ROBO RACER 4WD — BEGINNER-FRIENDLY WIRE-BY-WIRE INTERCONNECT TABLE
 
-**Document Revision:** v1.2 — Physical Delivery Baseline  
-**Hardware Reference:** 4× AA Battery Pack (Direct Unswitched) | Dual-Inductor SEPIC DC-DC Converter | 2× L298N Drivers | ESP32 DevKit V1 (30-pin) | 4× TT DC Geared Motors  
-**Related Vector Schematic:** [`robo-racer-full-wiring.svg`](robo-racer-full-wiring.svg)  
-**Safety Classification Key:**  
-- **[VERIFIED]**: Confirmed by firmware definitions (`config.h`), schematic netlists, and physical pinouts.  
-- **[MEASURED]**: Requires direct digital multimeter measurement before connection.  
-- **[ESTIMATED]**: Calculated nominal values based on 4× AA series chemistry (6.0V nominal, 6.4V fresh, 4.4V cutoff).  
+**Document Revision:** v1.3 — Post-Audit Baseline
+**Hardware Reference:** 4× AA Alkaline Battery Pack (Direct Unswitched) | Provisional DC-DC Converter (Unverified Topology; BLOCKED — COMPONENT IDENTIFICATION REQUIRED) | 2× L298N Drivers | ESP32 DevKit V1 (30-pin) | 4× TT DC Geared Motors
+**Related Vector Schematic:** [`robo-racer-full-wiring.svg`](robo-racer-full-wiring.svg)
+**Safety Classification Key:**
+- **[VERIFIED]**: Confirmed by firmware definitions (`config.h`), schematic netlists, and physical pinouts.
+- **[MEASURED]**: Requires direct digital multimeter measurement before connection.
+- **[ESTIMATED]**: Calculated nominal values based on 4× AA series alkaline chemistry (6.0V nominal, 6.4V fresh, 4.4V cutoff).
+- **[PROVISIONAL — PENDING CONVERTER IDENTIFICATION]**: Unverified circuit connection until switching IC markings are identified under magnification and bench tested for load regulation.
 - **[PENDING PHYSICAL DELIVERY]**: Real-world bench test required once physical hardware arrives.
 
 ---
@@ -14,10 +15,11 @@
 ## 1. Safety Rules Before Touching Any Wire
 
 > [!CAUTION]
-> **NO MASTER POWER SWITCH IS INSTALLED IN THIS VEHICLE.**  
-> - Once the 4th AA battery is inserted or the battery pack is plugged in, the **battery rail is LIVE**.  
-> - **DO NOT CONNECT THE ESP32 OR MOTOR DRIVER LOGIC TO THE DC-DC CONVERTER UNTIL ITS OUTPUT IS CALIBRATED WITH A MULTIMETER TO EXACTLY 5.00 V.** Supplying uncalibrated voltage (> 6V or reverse polarity) will permanently destroy the ESP32 microcontroller!  
+> **NO MASTER POWER SWITCH IS INSTALLED IN THIS VEHICLE.**
+> - Once the 4th AA battery is inserted or the battery pack is plugged in, the **battery rail is LIVE**.
+> - **DO NOT CONNECT THE ESP32 OR MOTOR DRIVER LOGIC TO THE DC-DC CONVERTER UNTIL ITS NO-LOAD OUTPUT IS CALIBRATED WITH A MULTIMETER TO EXACTLY 5.00 V.** Supplying uncalibrated voltage (> 6V or reverse polarity) will permanently destroy the ESP32 microcontroller!
 > - Work with the **battery pack completely disconnected** (or one AA cell removed) during all wiring steps.
+> - The DC-DC converter topology is currently unverified from listing photos (two inductors do not prove SEPIC or auto buck-boost). Load regulation during motor inrush is unverified until physical bench measurement.
 
 ---
 
@@ -26,24 +28,34 @@
 | Wire ID | Source Component & Terminal | Destination Component & Terminal | Wire Gauge / Type | Color | Functional Purpose | Multimeter Pre-Connection Verification Step | Status |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
 | **PWR-01** | 4× AA Tray Positive (+) lead | Central V+ Distribution Bus / Barrier Strip | 20–22 AWG Stranded | **Red** | Unswitched raw battery positive rail (~6.0V nominal) | Measure with DMM in DC Volts mode across battery leads: 4× fresh alkaline must read **6.0V to 6.4V**. | **[MEASURED]** |
-| **PWR-02** | Central V+ Distribution Bus | DC-DC Converter Terminal `IN+` | 20–22 AWG Stranded | **Red** | DC-DC converter raw input supply | DMM continuity check from battery positive to `IN+`: < 0.2 Ω. | **[VERIFIED]** |
+| **PWR-02** | Central V+ Distribution Bus | DC-DC Converter Terminal `IN+` | 20–22 AWG Stranded | **Red** | DC-DC converter raw input supply | DMM continuity check from battery positive to `IN+`: < 0.2 Ω. | **[PROVISIONAL — PENDING CONVERTER IDENTIFICATION]** |
 | **PWR-03** | Central V+ Distribution Bus | Left L298N (#1) Terminal `+12V` (VS) | 20–22 AWG Stranded | **Red** | Motor supply rail for Left Drivetrain (FL & RL motors) | Check resistance between `+12V` and `GND` before powering: must be > 10 kΩ (not shorted). | **[VERIFIED]** |
 | **PWR-04** | Central V+ Distribution Bus | Right L298N (#2) Terminal `+12V` (VS) | 20–22 AWG Stranded | **Red** | Motor supply rail for Right Drivetrain (FR & RR motors) | Check resistance between `+12V` and `GND` before powering: must be > 10 kΩ (not shorted). | **[VERIFIED]** |
 | **PWR-05** | 4× AA Tray Negative (-) lead | Central Star Ground (GND) Bus Point | 20–22 AWG Stranded | **Black** | Main system battery ground return | Measure continuity from battery negative terminal to star bus: < 0.2 Ω. | **[MEASURED]** |
-| **PWR-06** | Central Star Ground Bus | DC-DC Converter Terminal `IN-` | 20–22 AWG Stranded | **Black** | DC-DC converter input ground return | Verify direct low-resistance connection to star point (< 0.2 Ω). | **[VERIFIED]** |
-| **PWR-07** | DC-DC Converter Terminal `OUT-` | Central Star Ground Bus | 20–22 AWG Stranded | **Black** | Regulated logic return to star ground | Check continuity between `IN-` and `OUT-` on converter (most modules share common ground plane). | **[VERIFIED]** |
+| **PWR-06** | Central Star Ground Bus | DC-DC Converter Terminal `IN-` | 20–22 AWG Stranded | **Black** | DC-DC converter input ground return | Verify direct low-resistance connection to star point (< 0.2 Ω). | **[PROVISIONAL — PENDING CONVERTER IDENTIFICATION]** |
+| **PWR-07** | DC-DC Converter Terminal `OUT-` | Central Star Ground Bus | 20–22 AWG Stranded | **Black** | Regulated logic return to star ground | Check continuity between `IN-` and `OUT-` on converter (most modules share common ground plane). | **[PROVISIONAL — PENDING CONVERTER IDENTIFICATION]** |
 | **PWR-08** | Left L298N (#1) Terminal `GND` | Central Star Ground Bus | 20–22 AWG Stranded | **Black** | Left motor driver high-current ground return | Inspect mechanical tightness in screw terminal; verify low impedance (< 0.2 Ω). | **[VERIFIED]** |
 | **PWR-09** | Right L298N (#2) Terminal `GND` | Central Star Ground Bus | 20–22 AWG Stranded | **Black** | Right motor driver high-current ground return | Inspect mechanical tightness in screw terminal; verify low impedance (< 0.2 Ω). | **[VERIFIED]** |
 | **PWR-10** | ESP32 DevKit Board Pin `GND` | Central Star Ground Bus | 22–24 AWG Stranded (Dupont-to-bus) | **Black** | Microcontroller reference ground | Verify continuity from ESP32 GND pin to Star Ground block (< 0.3 Ω). | **[VERIFIED]** |
-| **PWR-11** | DC-DC Converter Terminal `OUT+` | ESP32 DevKit Pin `VIN` (5V Input) | 22 AWG Stranded (Dupont-to-bare) | **Cyan / Red** | Regulated 5.00V supply to ESP32 onboard LDO | **CRITICAL:** Connect multimeter to `OUT+` and `OUT-`. Adjust 3296W trimpot until voltage reads **5.00V ± 0.05V**. Do NOT plug into ESP32 until verified! | **[MEASURED]** |
-| **PWR-12** | DC-DC Converter Terminal `OUT+` (or 5V Bus) | Left L298N (#1) Terminal `+5V` | 22–24 AWG Stranded | **Cyan / Blue** | Regulated 5.00V logic supply for Left L298 internal gates | Verify Left L298N **`5V-EN` jumper is REMOVED** before making this connection! | **[VERIFIED]** |
-| **PWR-13** | DC-DC Converter Terminal `OUT+` (or 5V Bus) | Right L298N (#2) Terminal `+5V` | 22–24 AWG Stranded | **Cyan / Blue** | Regulated 5.00V logic supply for Right L298 internal gates | Verify Right L298N **`5V-EN` jumper is REMOVED** before making this connection! | **[VERIFIED]** |
+| **PWR-11** | DC-DC Converter Terminal `OUT+` | ESP32 DevKit Pin `VIN` (5V Input) | 22 AWG Stranded (Dupont-to-bare) | **Cyan / Red** | Regulated 5.00V supply to ESP32 onboard LDO | **CRITICAL:** Connect multimeter to `OUT+` and `OUT-`. Adjust 3296W trimpot until voltage reads **5.00V no-load**. Do NOT plug into ESP32 until verified! Stability under motor sag is unverified until physical bench test. | **[PROVISIONAL — PENDING CONVERTER IDENTIFICATION]** |
+| **PWR-12** | DC-DC Converter Terminal `OUT+` (or 5V Bus) | Left L298N (#1) Terminal `+5V` | 22–24 AWG Stranded | **Cyan / Blue** | Regulated 5.00V logic supply for Left L298 internal gates | Verify Left L298N **`5V-EN` jumper is REMOVED** before making this connection! | **[PROVISIONAL — PENDING CONVERTER IDENTIFICATION]** |
+| **PWR-13** | DC-DC Converter Terminal `OUT+` (or 5V Bus) | Right L298N (#2) Terminal `+5V` | 22–24 AWG Stranded | **Cyan / Blue** | Regulated 5.00V logic supply for Right L298 internal gates | Verify Right L298N **`5V-EN` jumper is REMOVED** before making this connection! | **[PROVISIONAL — PENDING CONVERTER IDENTIFICATION]** |
 
 ---
 
 ## 3. Left Drivetrain Motor Wiring (MOT-01 to MOT-04)
 
 Both left motors are controlled in parallel by L298N Module #1 (Channel A = Front-Left, Channel B = Rear-Left).
+
+> [!IMPORTANT]
+> **FIRMWARE MOTOR PAIRING & PHYSICAL ISOLATION TESTING RULE:**
+> The ESP32 firmware commands both left motors in tandem (`set_hardware_left` drives FL and RL with identical direction and PWM). The firmware does NOT provide independent single-wheel control via standard drive commands.
+> **To test each motor channel individually without fighting opposing torques:**
+> 1. Physically connect **only the Front-Left motor** (`MOT-01/02`) to the terminal block. Leave `OUT3/OUT4` empty.
+> 2. Elevated on the stand, command slow forward jog and verify the FL wheel rotates forward. If backwards, swap `MOT-01` and `MOT-02`.
+> 3. Disconnect `MOT-01/02` and connect **only the Rear-Left motor** (`MOT-03/04`) to `OUT3/OUT4`.
+> 4. Command slow forward jog and verify the RL wheel rotates forward. If backwards, swap `MOT-03` and `MOT-04`.
+> 5. Reconnect both motors. Both are now verified to turn together in the correct forward direction.
 
 | Wire ID | Source Terminal | Destination Motor Terminal | Gauge / Type | Color | Motor & Motion Channel | Verification Check |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -57,6 +69,11 @@ Both left motors are controlled in parallel by L298N Module #1 (Channel A = Fron
 ## 4. Right Drivetrain Motor Wiring (MOT-05 to MOT-08)
 
 Both right motors are controlled in parallel by L298N Module #2 (Channel A = Front-Right, Channel B = Rear-Right).
+
+> [!IMPORTANT]
+> **RIGHT MOTOR PHYSICAL ISOLATION TESTING RULE:**
+> The ESP32 firmware commands both right motors in tandem (`set_hardware_right` drives FR and RR with identical direction and PWM).
+> Follow the identical physical isolation procedure: connect only FR (`MOT-05/06`) first, verify forward rotation, disconnect and connect only RR (`MOT-07/08`), verify forward rotation, and finally tighten all 4 wires.
 
 | Wire ID | Source Terminal | Destination Motor Terminal | Gauge / Type | Color | Motor & Motion Channel | Verification Check |
 | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -131,9 +148,9 @@ Right L298N Module (DRV-02):
 
 Because this chassis build does not include a toggle or slide power switch, operators must use one of the following safe isolation procedures:
 
-1. **Primary Disconnect (Recommended):**  
+1. **Primary Disconnect (Recommended):**
    Install a 2-pin JST-XH or standard 2.1mm DC barrel connector inline between the battery pack leads and the central distribution bus. To power off the vehicle, unplug this connector.
-2. **Secondary Disconnect (Zero Extra Hardware):**  
+2. **Secondary Disconnect (Zero Extra Hardware):**
    Gently pull any single AA cell out of the battery holder. This breaks the series chain and completely de-energizes the vehicle with zero standby quiescent drain.
-3. **Storage Rule:**  
+3. **Storage Rule:**
    Always remove all 4 AA cells from the vehicle when stored for more than 24 hours to prevent alkaline electrolyte leakage.

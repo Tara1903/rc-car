@@ -59,14 +59,15 @@ Robo Racer is a production-grade native Android application and ESP32 embedded f
   - Driver 1: Controls Front-Left and Rear-Left motors.
   - Driver 2: Controls Front-Right and Rear-Right motors.
 - **Power Architecture:**
-  - 4× AA battery pack (~6.0V nominal, 6.4V fresh pack max, 4.4V cutoff threshold).
+  - 4× AA alkaline battery pack (Duracell / Eveready: ~6.0V nominal, 6.4V fresh open-circuit max, 4.4V cutoff threshold). Subject to dynamic voltage sag under 4-motor inrush due to internal resistance ($R_i \approx 0.6\,\Omega - 1.2\,\Omega$).
   - Direct unswitched battery positive rail supplying both L298N motor drivers (`+12V` terminals) and DC-DC converter input (`IN+`).
   - **No master power switch installed**: Safe manual isolation by unplugging the inline battery connector or removing one AA cell.
-  - Dual-inductor SEPIC auto buck-boost DC-DC converter calibrated to deliver **5.00V ± 0.05V** regulated logic supply to ESP32 `VIN` and both L298N `+5V` terminals (with onboard `5V-EN` jumpers removed).
+  - Provisional DC-DC converter (Unverified topology: BLOCKED — COMPONENT IDENTIFICATION REQUIRED). Calibrated to deliver **5.00V no-load** logic supply to ESP32 `VIN` and both L298N `+5V` terminals (with onboard `5V-EN` jumpers removed). Dynamic load regulation during motor inrush is unverified until physical bench measurement.
 - **Battery Voltage Divider:**
   - $R_1 = 100\,\text{k}\Omega$, $R_2 = 20\,\text{k}\Omega$ (Divider ratio: $6.0:1$).
   - Connected to `GPIO 34` (ADC1 Channel 6).
   - At $6.4\,\text{V}$ maximum fresh battery voltage, pin voltage is $\sim 1.067\,\text{V}$, well within the ESP32 ADC $0 - 3.3\,\text{V}$ linear input range.
+  - Telemetry provides an uncalibrated/linear voltage proxy, not coulomb-counted battery capacity. Requires physical multimeter calibration before setting `BATT_CALIBRATION_CONFIRMED = 1`.
 
 ---
 
@@ -94,7 +95,7 @@ All motor control and enable pins are mapped to safe, non-strapping general-purp
 ### Critical Strapping Pin Note: GPIO 2
 > [!IMPORTANT]
 > `GPIO 2` is an ESP32 strapping/bootstrapping pin connected to an internal pulldown resistor that governs SPI flash programming mode at power-on reset. On the Prakti ESP32 board, `GPIO 2` is hardwired to the onboard blue LED.
-> 
+>
 > In this design:
 > 1. `GPIO 2` is used **exclusively as a diagnostic status LED** (`OUTPUT` mode initialized in `setup()`).
 > 2. `GPIO 2` is **NEVER connected to motor drivers, H-bridge inputs, or enable pins**. Connecting strapping pins to motor drivers can cause spurious high pulses during boot, resulting in sudden motor jumps.
@@ -210,20 +211,22 @@ When physical components arrive:
   - Verify Bluetooth device advertises as `ROBO-RACER-ESP32`.
   - Connect with Android app and verify onboard blue LED changes from slow blink (1 Hz) to solid ON.
 - [ ] **Step 2: Battery Divider Calibration**
-  - Connect a variable power supply or known 3S Li-ion battery to the $100\,\text{k}\Omega / 20\,\text{k}\Omega$ divider.
+  - Connect the 4× AA battery pack (or bench supply set to 6.0V) to the $100\,\text{k}\Omega / 20\,\text{k}\Omega$ divider.
   - Measure battery terminal voltage with DMM ($V_{\text{true}}$) and ADC pin 34 voltage ($V_{\text{pin}}$).
   - Confirm voltage divider ratio is approximately $6.0$ ($V_{\text{true}} / V_{\text{pin}}$).
-  - Verify app displays calibrated voltage matching DMM within $\pm 0.1\,\text{V}$.
-- [ ] **Step 3: Buck-Boost Regulator Calibration**
-  - Disconnect motors from L298N output terminals.
-  - Power XL6019 from 3S battery.
-  - Adjust multi-turn brass potentiometer on XL6019 until output voltage measures exactly $6.0\,\text{V}$.
-- [ ] **Step 4: Motor Direction & Phasing (Wheels Suspended Off Ground)**
-  - Place robot chassis on a test stand so all 4 wheels rotate freely.
-  - Hold neon green Accelerate pedal: verify all 4 wheels spin forward.
-  - If any wheel spins backward, invert its motor wiring on the corresponding L298N terminal block.
-  - Test steering left: left wheels should reverse or slow down; right wheels spin forward.
-  - Test steering right: right wheels should reverse or slow down; left wheels spin forward.
+  - Calculate exact ratio, update `BATT_DIVIDER_RATIO` in `firmware/src/config.h`, set `BATT_CALIBRATION_CONFIRMED = 1`, and reflash.
+- [ ] **Step 3: DC-DC Converter Inspection & Calibration (Metrology Gate)**
+  - Inspect switching IC markings under magnification to confirm topology.
+  - Disconnect ESP32 `VIN` and L298N `+5V` wires.
+  - Power converter from 4× AA alkaline pack.
+  - Adjust multi-turn brass potentiometer on blue module until no-load output measures **5.00 V**.
+  - Reconnect logic wires only after 5.00V is verified. (Load stability under motor sag is unverified until bench load test).
+- [ ] **Step 4: Motor Direction & Phasing via Physical Isolation (Wheels Suspended Off Ground)**
+  - Place robot chassis on a test stand so all 4 wheels rotate freely in the air.
+  - **Left Driver:** Connect Front-Left motor alone; command low forward jog; verify forward rotation (swap wires if backwards). Disconnect FL, connect Rear-Left alone, verify forward rotation. Reconnect both and confirm both spin forward in tandem.
+  - **Right Driver:** Connect Front-Right motor alone; verify forward rotation. Disconnect FR, connect Rear-Right alone, verify forward rotation. Reconnect both and confirm both spin forward in tandem.
+  - Test steering left: left wheels slow down/stop; right wheels spin forward.
+  - Test steering right: right wheels slow down/stop; left wheels spin forward.
 - [ ] **Step 5: Failsafe & Range Test**
   - While running forward, power off phone Bluetooth or force-close app.
   - Verify motors stop within 500 ms (failsafe trip) and status LED begins fast strobe (5 Hz).

@@ -2,9 +2,9 @@
 Generate robo-racer-full-wiring.svg
 Produces a crisp, high-contrast, production-grade vector wiring schematic
 for the Robo Racer 4WD robotics vehicle with:
-- 4x AA battery pack (direct unswitched wiring, NO power switch)
+- 4x AA alkaline battery pack (Duracell / Eveready, direct unswitched wiring, NO power switch)
 - Optional inline fuse (clearly marked as optional/not installed)
-- Dual-inductor SEPIC / Auto Buck-Boost DC-DC converter (5.00V logic rail)
+- Provisional DC-DC converter (Unverified topology; BLOCKED - COMPONENT IDENTIFICATION REQUIRED)
 - ESP32 DevKit V1 (30-pin)
 - 2x L298N motor drivers (jumpers 5V-EN, ENA, ENB removed on both)
 - 4x TT gear motors with noise capacitors
@@ -63,7 +63,7 @@ SVG_CONTENT = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1150"
   <!-- ========================================================================= -->
   <rect x="30" y="20" width="1540" height="70" rx="8" fill="#0f172a" stroke="#00f0ff" stroke-width="1.5" stroke-opacity="0.5"/>
   <text x="55" y="52" fill="#00f0ff" font-size="22" font-weight="bold" letter-spacing="1.5">ROBO RACER 4WD — PHYSICAL SYSTEM WIRING SCHEMATIC</text>
-  <text x="55" y="74" fill="#94a3b8" font-size="12">Direct 4× AA Battery (~6V Unswitched) | SEPIC Auto Buck-Boost (5.00V Logic) | 2× L298N (Opto-Isolated Drivetrain) | ESP32 DevKit V1</text>
+  <text x="55" y="74" fill="#94a3b8" font-size="12">Direct 4× AA Alkaline (~6V Unswitched) | Provisional DC-DC (Unverified Topology) | 2× L298N Drivers | ESP32 DevKit V1</text>
   <rect x="1270" y="32" width="280" height="46" rx="6" fill="#1e293b" stroke="#e2e8f0" stroke-opacity="0.2"/>
   <text x="1285" y="50" fill="#f59e0b" font-size="11" font-weight="bold">NO SWITCH INSTALLED</text>
   <text x="1285" y="66" fill="#cbd5e1" font-size="10">Manual Disconnect Required | Jumpers Removed</text>
@@ -352,12 +352,13 @@ SVG_CONTENT = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1150"
   </g>
 
   <!-- ========================================================================= -->
-  <!-- 6. ADJUSTABLE DC-DC CONVERTER (SEPIC / AUTO BUCK-BOOST)                   -->
+  <!-- 6. PROVISIONAL DC-DC CONVERTER (UNVERIFIED TOPOLOGY)                       -->
   <!-- ========================================================================= -->
   <g id="dcdc_converter" transform="translate(630, 580)">
-    <rect x="0" y="0" width="340" height="175" rx="8" fill="url(#convGrad)" stroke="#38bdf8" stroke-width="1.8"/>
-    <text x="170" y="26" fill="#38bdf8" font-size="13" font-weight="bold" text-anchor="middle">DUAL-INDUCTOR DC-DC CONVERTER (SEPIC)</text>
-    <text x="170" y="42" fill="#93c5fd" font-size="10" text-anchor="middle">Automatic Step-Up / Step-Down | Maintains 5.00V during sag</text>
+    <rect x="0" y="0" width="340" height="175" rx="8" fill="url(#convGrad)" stroke="#f59e0b" stroke-width="2" stroke-dasharray="6,3"/>
+    <text x="170" y="24" fill="#f59e0b" font-size="12" font-weight="bold" text-anchor="middle">PROVISIONAL DC-DC CONVERTER (UNVERIFIED TOPOLOGY)</text>
+    <text x="170" y="38" fill="#fca5a5" font-size="9" text-anchor="middle">BLOCKED — COMPONENT IDENTIFICATION REQUIRED</text>
+    <text x="170" y="52" fill="#94a3b8" font-size="8" text-anchor="middle">Two inductors do not prove SEPIC/buck-boost; load regulation unverified</text>
 
     <!-- Dual Inductors marked 330 -->
     <circle cx="85" cy="85" r="24" fill="#0f172a" stroke="#64748b" stroke-width="2"/>
@@ -388,8 +389,8 @@ SVG_CONTENT = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1150"
     <text x="314" y="111" fill="#cbd5e1" font-size="9" font-weight="bold" text-anchor="middle">OUT-</text>
 
     <!-- Critical Calibration Warning -->
-    <rect x="15" y="140" width="310" height="26" rx="4" fill="#450a0a" stroke="#ef4444"/>
-    <text x="170" y="157" fill="#fef08a" font-size="10" font-weight="bold" text-anchor="middle">CALIBRATE TO 5.00V ± 0.05V BEFORE CONNECTING ESP32 / DRIVERS!</text>
+    <rect x="10" y="140" width="320" height="26" rx="4" fill="#450a0a" stroke="#ef4444"/>
+    <text x="170" y="157" fill="#fef08a" font-size="9" font-weight="bold" text-anchor="middle">PROVISIONAL: TRIM TO 5.0V NO-LOAD. LOAD STABILITY UNVERIFIED.</text>
   </g>
 
   <!-- ========================================================================= -->
@@ -397,8 +398,9 @@ SVG_CONTENT = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1150"
   <!-- ========================================================================= -->
   <g id="battery_pack" transform="translate(630, 800)">
     <rect x="0" y="0" width="340" height="200" rx="8" fill="url(#battGrad)" stroke="#3b82f6" stroke-width="1.5"/>
-    <text x="170" y="25" fill="#f8fafc" font-size="13" font-weight="bold" text-anchor="middle">4× AA BATTERY PACK (SERIES TRAY)</text>
-    <text x="170" y="42" fill="#94a3b8" font-size="10" text-anchor="middle">4× 1.5V Alkaline / NiMH | ~6.0V Nominal (6.4V Max, 4.4V Cutoff)</text>
+    <text x="170" y="24" fill="#f8fafc" font-size="13" font-weight="bold" text-anchor="middle">4× AA ALKALINE BATTERY PACK (SERIES TRAY)</text>
+    <text x="170" y="39" fill="#94a3b8" font-size="10" text-anchor="middle">Duracell / Eveready: 6.0V Nom (6.4V Fresh Max, 4.4V Cutoff)</text>
+    <text x="170" y="51" fill="#f59e0b" font-size="8" text-anchor="middle">Dynamic sag under motor inrush due to pack internal resistance (Ri ≈ 0.6 - 1.2 Ω)</text>
 
     <!-- 4 Battery Cells Graphic -->
     <rect x="30" y="55" width="280" height="65" rx="5" fill="#020617" stroke="#1e293b"/>
@@ -569,8 +571,8 @@ SVG_CONTENT = '''<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1150"
     <line x1="20" y1="72" x2="65" y2="72" stroke="#64748b" stroke-width="4.5"/>
     <text x="75" y="76" fill="#f8fafc" font-size="10">PWR-05..10: Central Star Ground (0V)</text>
 
-    <line x1="20" y1="96" x2="65" y2="96" stroke="#00f0ff" stroke-width="3.5"/>
-    <text x="75" y="100" fill="#f8fafc" font-size="10">PWR-11..13: Regulated 5.00V Logic Rail</text>
+    <line x1="20" y1="96" x2="65" y2="96" stroke="#00f0ff" stroke-width="3.5" stroke-dasharray="4,2"/>
+    <text x="75" y="100" fill="#f8fafc" font-size="10">PWR-11..13: Provisional 5.0V Logic Rail (Unverified)</text>
 
     <line x1="20" y1="120" x2="65" y2="120" stroke="#f59e0b" stroke-width="2" stroke-dasharray="4,2"/>
     <text x="75" y="124" fill="#f8fafc" font-size="10">SIG-01/06/07/12: 20kHz PWM Speed</text>

@@ -1,11 +1,11 @@
 # ROBO RACER 4WD — ELECTRICAL COMMISSIONING & BENCH TEST PROCEDURE
 
-**Document Revision:** v1.2 — Physical Delivery Baseline  
-**Target Hardware:** 4WD Robotic Car Kit | 4× AA Battery Pack (~6.0V Nominal) | SEPIC Auto Buck-Boost DC-DC Module | 2× L298N Drivers | ESP32 DevKit V1 (30-pin) | 4× TT DC Geared Motors  
-**Related Documents:**  
-- [`robo-racer-full-wiring.svg`](robo-racer-full-wiring.svg) (Master Vector Schematic)  
-- [`robo-racer-wire-by-wire.md`](robo-racer-wire-by-wire.md) (Wire-by-Wire Pinout Table)  
-- [`robo-racer-wiring-assembly-guide.md`](robo-racer-wiring-assembly-guide.md) (Physical Assembly & Jumper Guide)  
+**Document Revision:** v1.2 — Physical Delivery Baseline
+**Target Hardware:** 4WD Robotic Car Kit | 4× AA Battery Pack (~6.0V Nominal) | SEPIC Auto Buck-Boost DC-DC Module | 2× L298N Drivers | ESP32 DevKit V1 (30-pin) | 4× TT DC Geared Motors
+**Related Documents:**
+- [`robo-racer-full-wiring.svg`](robo-racer-full-wiring.svg) (Master Vector Schematic)
+- [`robo-racer-wire-by-wire.md`](robo-racer-wire-by-wire.md) (Wire-by-Wire Pinout Table)
+- [`robo-racer-wiring-assembly-guide.md`](robo-racer-wiring-assembly-guide.md) (Physical Assembly & Jumper Guide)
 - [`docs/hardware/wiring-implementation-plan.md`](wiring-implementation-plan.md) (Architecture & Risk Plan)
 
 ---
@@ -13,8 +13,8 @@
 ## 1. Safety Gate & Tooling Requirements
 
 > [!CAUTION]
-> **NEVER SKIP STAGE 1 OR STAGE 2.**  
-> - Plugging an uncalibrated DC-DC converter into an ESP32 board is the #1 cause of destroyed microcontrollers in DIY robotics.  
+> **NEVER SKIP STAGE 1 OR STAGE 2.**
+> - Plugging an uncalibrated DC-DC converter into an ESP32 board is the #1 cause of destroyed microcontrollers in DIY robotics.
 > - All initial motor testing MUST be performed with the **car chassis elevated on a block** so all four wheels rotate freely in the air without touching the workbench or floor.
 
 ### Equipment Required:
@@ -46,22 +46,22 @@
 
 ### STAGE 1: Unpowered Continuity & Short-Circuit Verification
 
-*Objective: Guarantee zero dead shorts between power rails, ground, and signal lines BEFORE any battery is inserted.*  
+*Objective: Guarantee zero dead shorts between power rails, ground, and signal lines BEFORE any battery is inserted.*
 *Status: **[MANDATORY BENCH CHECK - PRE-POWER]***
 
 1. **Battery pack completely removed.** Disconnect any USB cable from ESP32.
 2. Set DMM to **Resistance (Ohms / Continuity)** mode.
 3. **Rail-to-Ground Measurements:**
-   - Probe between **Central V+ Bus** (Red) and **Central Star GND** (Black):  
-     *Expected:* Reads open circuit or charging capacitor effect (> 10 kΩ).  
+   - Probe between **Central V+ Bus** (Red) and **Central Star GND** (Black):
+     *Expected:* Reads open circuit or charging capacitor effect (> 10 kΩ).
      *Pass Criteria:* **> 5 kΩ**. If DMM buzzes or reads < 10 Ω, **STOP IMMEDIATELY**: there is a dead short between battery positive and ground!
-   - Probe between **DC-DC OUT+ Terminal** and **Central Star GND**:  
+   - Probe between **DC-DC OUT+ Terminal** and **Central Star GND**:
      *Pass Criteria:* **> 1 kΩ** (not shorted).
-   - Probe between **ESP32 3V3 pin** and **GND**:  
+   - Probe between **ESP32 3V3 pin** and **GND**:
      *Pass Criteria:* **> 500 Ω** (ESP32 internal LDO not shorted).
 4. **Motor Winding Resistance:**
-   - Measure across the two terminals of each TT motor (FL, RL, FR, RR):  
-     *Pass Criteria:* **2.2 Ω to 5.0 Ω** per motor.  
+   - Measure across the two terminals of each TT motor (FL, RL, FR, RR):
+     *Pass Criteria:* **2.2 Ω to 5.0 Ω** per motor.
      *Fail Criteria:* 0 Ω (internal shorted winding) or ∞ Ω (broken wire/brush).
 5. **Star Ground Continuity:**
    - Measure resistance from Battery Negative terminal to:
@@ -73,32 +73,39 @@
 
 ---
 
-### STAGE 2: DC-DC Output Calibration (Multimeter Prerequisite)
+### STAGE 2: DC-DC Identification & Output Calibration (Multimeter Prerequisite)
 
-*Objective: Adjust the SEPIC converter output to exactly 5.00 V with no sensitive loads attached.*  
-*Status: **[MANDATORY BENCH CHECK - METROLOGY GATE]***
+*Objective: Inspect switching controller markings under magnification, establish true topology, and adjust no-load output to 5.00 V.*
+*Status: **[PROVISIONAL BENCH CHECK — METROLOGY GATE (BLOCKED — COMPONENT IDENTIFICATION REQUIRED)]***
 
 > [!CRITICAL]
 > **DISCONNECT WIRE `PWR-11` (ESP32 VIN), `PWR-12` (Left L298N +5V), AND `PWR-13` (Right L298N +5V) BEFORE PERFORMING THIS STEP.**
+> Do NOT connect the converter to sensitive logic until its topology and no-load output voltage are verified with a digital multimeter.
 
-1. Connect DC-DC Converter `IN+` to battery positive and `IN-` to star ground.
-2. Insert 4 fresh AA batteries into the tray.
-3. Measure battery terminal voltage with DMM across `IN+` and `IN-`:  
-   *Expected:* **6.0V to 6.4V DC** for alkaline (or ~5.0V to 5.2V for NiMH). Record as $V_{pack}$.
-4. Connect DMM test leads securely to DC-DC converter `OUT+` and `OUT-`. Set DMM to DC Volts (20V range).
-5. Read output voltage:
+1. **Physical Component Inspection Under Magnification:**
+   - Inspect the primary switching IC markings on the blue converter board using a magnifying glass or macro camera with bright angled lighting.
+   - Record the part number (e.g. XL6009, XL6019, FP5139, LM2577, or LM2596).
+   - Trace PCB copper connections: Check whether both inductors are active in a SEPIC/buck-boost circuit (with an intermediate coupling capacitor) or if Inductor 2 is merely an output $LC$ post-filter on a standard boost or buck converter.
+   - **Verification Gate:** If the module is a boost-only converter, its output cannot step down below input voltage ($V_{out} \ge V_{in}$). Connecting it to a fresh 6.4V alkaline pack would pass ~6.4V through to the ESP32 `VIN` pin. Only proceed if the module demonstrates true step-down capability when input exceeds 5.0V.
+2. Connect DC-DC Converter `IN+` to battery positive and `IN-` to star ground.
+3. Insert 4 fresh AA alkaline batteries into the tray (Duracell / Eveready).
+4. Measure battery terminal voltage with DMM across `IN+` and `IN-`:
+   *Expected:* **6.0V to 6.4V DC** for fresh alkaline cells. Record as $V_{pack}$.
+5. Connect DMM test leads securely to DC-DC converter `OUT+` and `OUT-`. Set DMM to DC Volts (20V range).
+6. Read no-load output voltage:
    - If output is not 5.00V, take a small flat-head screwdriver and turn the brass screw on the blue 3296W trimpot:
      - Clockwise / counter-clockwise adjusts the switching duty cycle.
      - Note: multiturn potentiometers require 5 to 15 full turns to transition between extremes.
-   - Adjust steadily until DMM reads **5.00 V** (acceptable tolerance window: **4.95 V to 5.05 V**).
-6. Disconnect the battery pack.
-7. Reconnect wires `PWR-11`, `PWR-12`, and `PWR-13` to their respective loads.
+   - Adjust steadily until DMM reads **5.00 V no-load** (acceptable tolerance window: **4.95 V to 5.05 V**).
+   - **Note on Load Stability:** Never claim 5.00V ± 0.05V stability under load without physical measurements. Output voltage under dynamic motor inrush and battery sag remains unverified until Stage 6 bench testing.
+7. Disconnect the battery pack.
+8. Reconnect wires `PWR-11`, `PWR-12`, and `PWR-13` to their respective loads.
 
 ---
 
 ### STAGE 3: ESP32 Logic Power-Up & Firmware Boot Verification
 
-*Objective: Verify that the ESP32 powers on cleanly, its onboard 3.3V LDO functions normally, and the firmware initializes.*  
+*Objective: Verify that the ESP32 powers on cleanly, its onboard 3.3V LDO functions normally, and the firmware initializes.*
 *Status: **[PENDING PHYSICAL DELIVERY]***
 
 1. Disconnect both L298N motor supply wires (`PWR-03` and `PWR-04` from driver `+12V` terminals). This ensures motors cannot accidentally draw current while testing the microcontroller.
@@ -123,7 +130,7 @@
 
 ### STAGE 4: Driver Logic & Jumper Verification
 
-*Objective: Confirm L298N logic circuits are operational, jumpers are removed, and quiescent current is within spec.*  
+*Objective: Confirm L298N logic circuits are operational, jumpers are removed, and quiescent current is within spec.*
 *Status: **[PENDING PHYSICAL DELIVERY]***
 
 1. Confirm all 6 jumpers are **REMOVED** across both L298N boards (`5V-EN`, `ENA`, `ENB`).
@@ -138,61 +145,123 @@
 
 ---
 
-### STAGE 5: Elevated Single-Motor Rotation & Direction Verification
+### STAGE 5: Individual Motor Direction Verification via Physical Isolation
 
-*Objective: Verify each motor channel spins smoothly in the intended direction under firmware command.*  
+*Objective: Verify each motor channel spins smoothly in the intended direction under firmware command, using physical isolation to test one channel at a time before pairing.*
 *Status: **[PENDING PHYSICAL DELIVERY]***
 
 > [!IMPORTANT]
-> Keep the vehicle elevated on the test stand. Do NOT let wheels touch the ground.
+> **FIRMWARE TANDEM DRIVE REALITY & PHYSICAL ISOLATION MANDATE:**
+> The Robo Racer ESP32 firmware commands motors in side pairs:
+> - `set_hardware_left()` drives both Front-Left (`OUT1/OUT2`) and Rear-Left (`OUT3/OUT4`) with the exact same PWM duty cycle and direction.
+> - `set_hardware_right()` drives both Front-Right (`OUT1/OUT2`) and Rear-Right (`OUT3/OUT4`) with the exact same PWM duty cycle and direction.
+>
+> The firmware does NOT provide independent single-wheel testing via normal joystick or driving commands. If both motors are wired immediately and one has reversed polarity, the two motors will mechanically fight each other, stalling the drivetrain, drawing high inrush current, and potentially stripping the plastic TT spur gears.
+>
+> **Therefore, commissioning MUST follow this physical isolation sequence:**
 
-1. Launch the **Robo Racer Android Controller App** and pair with `ROBO-RACER-ESP32` via Bluetooth Classic.
-2. Verify connection:
-   - ESP32 Blue LED transitions from 1 Hz blinking to **solid ON**.
-   - App dashboard shows "CONNECTED" and displays telemetry frames.
-3. **Individual Channel Direction Test:**
-   - **Front-Left Motor (FL):** Push throttle forward slightly (or command Forward slow).  
-     *Visual Check:* Front-left wheel must rotate **forward** (top of wheel rolling toward front of car).  
-     *Action if backwards:* Swap wires `MOT-01` and `MOT-02` in Left L298N `OUT1`/`OUT2` terminals.
-   - **Rear-Left Motor (RL):**  
-     *Visual Check:* Rear-left wheel must rotate **forward**.  
-     *Action if backwards:* Swap wires `MOT-03` and `MOT-04` in Left L298N `OUT3`/`OUT4` terminals.
-   - **Front-Right Motor (FR):**  
-     *Visual Check:* Front-right wheel must rotate **forward**.  
-     *Action if backwards:* Swap wires `MOT-05` and `MOT-06` in Right L298N `OUT1`/`OUT2` terminals.
-   - **Rear-Right Motor (RR):**  
-     *Visual Check:* Rear-right wheel must rotate **forward**.  
-     *Action if backwards:* Swap wires `MOT-07` and `MOT-08` in Right L298N `OUT3`/`OUT4` terminals.
-4. **Reverse Test:**
-   - Pull throttle backward. Confirm all 4 wheels rotate backwards smoothly.
-   - Verify that firmware reverse dwell (500ms deadband) prevents instant shock-reversal.
-5. **Failsafe Watchdog Test:**
-   - While wheels are rotating, toggle Bluetooth OFF on the Android phone (or close the app).
-   - *Pass Criteria:* All 4 motors must instantly stop spinning within **500 ms** (`WATCHDOG_TIMEOUT_MS`). The ESP32 blue LED transitions to rapid failsafe strobing (5 Hz).
+1. Keep the vehicle elevated on a test stand (all four wheels completely clear of workbench).
+2. Launch the **Robo Racer Android Controller App** and pair with `ROBO-RACER-ESP32` via Bluetooth Classic.
+3. Verify connection: ESP32 Blue LED transitions from 1 Hz blinking to **solid ON**, and the app shows "CONNECTED".
+
+#### Step 5A: Left Drivetrain Channel-by-Channel Isolation
+1. **Front-Left Motor (FL) Alone:**
+   - Connect ONLY wires `MOT-01` and `MOT-02` to Left L298N `OUT1` and `OUT2`.
+   - Leave `OUT3` and `OUT4` completely empty (disconnected).
+   - In the Android app, push the throttle forward slightly (10–20% low-speed jog).
+   - *Visual Check:* The FL wheel must rotate **forward** (top of tire rolling toward front bumper).
+   - *Correction if backwards:* Swap `MOT-01` and `MOT-02` in `OUT1/OUT2` screw terminals.
+2. **Rear-Left Motor (RL) Alone:**
+   - Unplug/disconnect `MOT-01` and `MOT-02` from `OUT1/OUT2`.
+   - Connect ONLY wires `MOT-03` and `MOT-04` to Left L298N `OUT3` and `OUT4`.
+   - Command low forward throttle in the app.
+   - *Visual Check:* The RL wheel must rotate **forward**.
+   - *Correction if backwards:* Swap `MOT-03` and `MOT-04` in `OUT3/OUT4` screw terminals.
+3. **Paired Left Verification:**
+   - Reconnect `MOT-01` and `MOT-02` back into `OUT1/OUT2`. Both FL and RL are now wired.
+   - Command low forward throttle: verify **both left wheels spin smoothly forward in unison**.
+
+#### Step 5B: Right Drivetrain Channel-by-Channel Isolation
+1. **Front-Right Motor (FR) Alone:**
+   - Connect ONLY wires `MOT-05` and `MOT-06` to Right L298N `OUT1` and `OUT2`.
+   - Leave `OUT3` and `OUT4` empty.
+   - Command low forward throttle in the app.
+   - *Visual Check:* The FR wheel must rotate **forward**.
+   - *Correction if backwards:* Swap `MOT-05` and `MOT-06` in `OUT1/OUT2`.
+2. **Rear-Right Motor (RR) Alone:**
+   - Disconnect `MOT-05` and `MOT-06`.
+   - Connect ONLY wires `MOT-07` and `MOT-08` to Right L298N `OUT3` and `OUT4`.
+   - Command low forward throttle in the app.
+   - *Visual Check:* The RR wheel must rotate **forward**.
+   - *Correction if backwards:* Swap `MOT-07` and `MOT-08` in `OUT3/OUT4`.
+3. **Paired Right Verification:**
+   - Reconnect `MOT-05` and `MOT-06` back into `OUT1/OUT2`. Both FR and RR are now wired.
+   - Command low forward throttle: verify **both right wheels spin forward in unison**.
+
+#### Step 5C: 4-Wheel Direction & Safety Safeguard Checks
+1. Command forward: all 4 wheels spin forward.
+2. Command reverse: all 4 wheels spin backward smoothly after the 500ms zero-speed dwell deadband.
+3. **Watchdog Interlock Test:** While wheels are rotating, disable phone Bluetooth or close the app.
+   - *Pass Criteria:* All 4 motors must cut power within **500 ms** (`WATCHDOG_TIMEOUT_MS`). Status LED enters fast 5 Hz strobe.
 
 ---
 
-### STAGE 6: 4-Motor Simultaneous Load & Voltage Sag Test
+### STAGE 6: Four-Motor Power Budget & Voltage Sag Validation
 
-*Objective: Validate that the 4× AA alkaline battery pack and SEPIC DC-DC converter can power all 4 motors without triggering brownout resets.*  
+*Objective: Validate the power distribution system under 4-motor simultaneous load, characterize battery pack voltage sag, and confirm microcontroller logic rail stability.*
 *Status: **[PENDING PHYSICAL DELIVERY]***
 
+#### 6.1 Four-Motor Electrical Power Budget
+
+| Parameter | Per Motor (TT DC) | Total 4-Motor Drivetrain | System Notes & Constraints |
+|---|:---:|:---:|---|
+| **No-Load Running Current** | $150 - 250\,\text{mA}$ | $0.6 - 1.0\,\text{A}$ | Elevated wheels spinning freely in air |
+| **Typical Floor Running Current** | $300 - 500\,\text{mA}$ | $1.2 - 2.0\,\text{A}$ | Smooth floor driving, steady speed |
+| **Skid-Steer Pivot / Carpet Inrush** | $600 - 800\,\text{mA}$ | $2.4 - 3.2\,\text{A}$ | High friction turning on carpet |
+| **Theoretical Stall Surge Current** | $0.8 - 1.2\,\text{A}$ | **$3.2 - 4.8\,\text{A}$** | Momentary inrush during rapid reversal or blocked wheels |
+| **L298N Darlington Voltage Drop ($V_{drop}$)** | $1.8 - 2.5\,\text{V}$ | $1.8 - 2.5\,\text{V}$ | Bipolar $V_{CE(sat)}$ across upper & lower internal transistors |
+| **L298N Heat Dissipation ($P_{loss}$)** | $0.5 - 1.5\,\text{W}$ | **$2.0 - 4.0\,\text{W}$** | Split across 2 driver heatsinks; boards will get warm |
+| **ESP32 + Bluetooth Logic Current** | — | $120 - 260\,\text{mA}$ | Spikes up to 350 mA during Bluetooth radio transmission bursts |
+
+#### 6.2 4× AA Alkaline Battery Internal Resistance & Voltage Sag Analysis
+
+- **Pack Internal Resistance ($R_{i,pack}$):**
+  - Fresh AA alkaline cells (Duracell / Eveready): $R_i \approx 0.15\,\Omega - 0.30\,\Omega$ per cell.
+  - 4 cells in series: $R_{i,pack} \approx 0.60\,\Omega - 1.20\,\Omega$ fresh (increasing to $> 2.0\,\Omega$ as cells deplete).
+- **Loaded Terminal Voltage Equation:**
+  $$V_{pack\_loaded} = V_{open\_circuit} - (I_{total} \times R_{i,pack})$$
+  - At fresh open-circuit ($6.2\,\text{V}$) under $2.5\,\text{A}$ inrush load ($R_{i,pack} = 0.8\,\Omega$):
+    $$V_{pack\_loaded} = 6.2\,\text{V} - (2.5\,\text{A} \times 0.8\,\Omega) = 6.2\,\text{V} - 2.0\,\text{V} = \mathbf{4.2\,\text{V}}$$
+- **Net Voltage Delivered to TT Motor Terminals:**
+  $$V_{motor} = V_{pack\_loaded} - V_{drop\_L298N} \approx 4.2\,\text{V} - 2.0\,\text{V} = \mathbf{2.2\,\text{V}}$$
+  - *Engineering Insight:* Under heavy motor load, each TT motor receives only $\sim 2.0\,\text{V} - 2.5\,\text{V}$. The car will drive slower than theoretical 6V calculations suggest, which naturally limits stall current and protects motor windings from burning.
+
+> [!CAUTION]
+> **EXPLICIT PHYSICAL MEASUREMENT GATE — NEVER DELIBERATELY STALL MOTORS:**
+> - **DO NOT clamp wheels with pliers or hold wheels stationary to measure stall current directly.** Stalling TT motors will shear the internal plastic gear teeth, strip output shafts, and overheat motor brushes.
+> - **Safe Measurement Protocol:**
+>   1. Measure unpowered DC winding resistance with DMM: $R_{winding} \approx 3.0\,\Omega - 5.0\,\Omega$.
+>   2. Calculate theoretical stall current: $I_{stall\_calc} = V_{loaded} / R_{winding}$.
+>   3. Measure running currents with wheels elevated on test stand.
+
+#### 6.3 Simultaneous Load Test Execution
 1. Reconnect Bluetooth connection with vehicle elevated on test stand.
-2. Connect DMM Channel 1 (or handheld DMM) across the **4× AA Battery Terminals** (Raw $V_{pack}$).
-3. Connect DMM Channel 2 across the **DC-DC Converter Output Terminals** ($V_{logic}$).
+2. Connect DMM Channel 1 across **4× AA Battery Terminals** (Raw $V_{pack}$).
+3. Connect DMM Channel 2 across **DC-DC Converter Output Terminals** ($V_{logic}$).
 4. Command **100% Full Forward Throttle** for 5 seconds:
    - **Battery Pack Voltage ($V_{pack}$):**
      *Unloaded voltage:* ~6.2 V.
-     *Full-throttle loaded voltage:* Will sag to **~4.0 V to 4.8 V** due to AA internal resistance ($R_i \approx 0.6\,\Omega - 1.0\,\Omega$).
-     *Pass Criteria:* Voltage must remain > 3.8 V during continuous elevated run.
-   - **Regulated Logic Rail ($V_{logic}$):**
-     *Pass Criteria:* Must remain stable at **4.95 V to 5.05 V**. The SEPIC converter automatically boosts the sagging 4.0V input up to 5.00V!
+     *Loaded voltage:* Will sag to **~4.2 V to 5.0 V** due to AA internal resistance.
+     *Pass Criteria:* Pack terminal voltage remains > 3.8 V during elevated run.
+   - **Provisional Logic Rail ($V_{logic}$):**
+     *Evaluation Criteria:* Observe whether the converter successfully maintains $\ge 4.5\,\text{V}$ into the ESP32 `VIN` pin across the 5-second burst.
    - **ESP32 Stability:**
-     *Pass Criteria:* ESP32 must **NOT reset or brown out**. The Bluetooth connection must remain continuous without dropping packets.
-5. If the ESP32 resets (brownout detector triggers):
-   - Check that the SEPIC converter inductors are warm (not scalding).
-   - Add a $470\,\mu\text{F}$ 10V electrolytic buffer capacitor across the DC-DC `OUT+` and `OUT-` terminals to absorb motor inrush spikes.
-   - Verify AA battery quality (replace stale carbon-zinc cells with high-drain alkaline or low-ESR NiMH).
+     *Pass Criteria:* ESP32 must **NOT reset or brown out**. Bluetooth connection must remain unbroken.
+5. **Corrective Actions if Brownout Occurs:**
+   - If the ESP32 resets when motors start, the DC-DC converter cannot step up dynamically during the steep inrush dip.
+   - *Mitigation A:* Add a $470\,\mu\text{F} - 1000\,\mu\text{F}$ 10V low-ESR electrolytic buffer capacitor across DC-DC `OUT+` and `OUT-` to hold the logic rail during motor current spikes.
+   - *Mitigation B:* Replace weak AA cells with high-drain alkaline cells or low-impedance NiMH rechargeable cells ($R_i \approx 0.05\,\Omega/\text{cell}$).
+   - *Mitigation C:* If the unverified converter proves to be a boost-only module or cannot maintain regulation, decouple logic power by powering the ESP32 via a separate small 5V USB battery bank.
 
 ---
 

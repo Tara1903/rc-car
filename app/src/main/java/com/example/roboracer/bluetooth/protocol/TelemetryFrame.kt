@@ -35,8 +35,13 @@ data class TelemetryFrame(
     val batteryVolts: Float?
         get() = if (isBatteryValid) batteryMilliVolts / 1000.0f else null
 
-    // Battery percentage estimate for 4x AA Alkaline / NiMH pack (4.4V cutoff to 6.4V fresh full charge).
-    // Returns null if uncalibrated, disconnected, or invalid.
+    // Open-circuit voltage-based battery percentage estimate for 4x AA Alkaline series pack
+    // (Duracell / Eveready: 4.4V cutoff threshold to 6.4V fresh open-circuit pack).
+    // Note: This is an uncalibrated/linear voltage proxy, NOT true coulomb-counted capacity
+    // or loaded battery state-of-charge. Alkaline cells suffer significant dynamic voltage sag
+    // under motor inrush current due to internal resistance (Ri ≈ 0.6 - 1.2 Ω).
+    // NiMH chemistry (nominal 1.2V/cell, 4.8V pack) requires different calibration thresholds.
+    // Returns null if reading is uncalibrated, disconnected, or out of plausible range.
     val batteryPercentage: Int?
         get() = when {
             !isBatteryValid -> null

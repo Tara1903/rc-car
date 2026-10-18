@@ -53,7 +53,8 @@
 #define MIN_START_DUTY        45
 #define REVERSE_DWELL_MS     500
 
-// Battery Monitoring & Multimeter Calibration (4x AA Alkaline / NiMH Series Pack)
+// Battery Monitoring & Multimeter Calibration (4x AA Alkaline Series Pack: Duracell / Eveready)
+// Fresh open-circuit: ~6.4V; Nominal: ~6.0V; Cutoff: 4.4V. (Under motor load, Ri causes voltage sag).
 // To calibrate: measure pack voltage (V_pack) and GPIO 34 pin voltage (V_pin) with digital multimeter.
 // Enter ratio V_pack / V_pin into BATT_DIVIDER_RATIO and set BATT_CALIBRATION_CONFIRMED to 1.
 #define BATT_CALIBRATION_CONFIRMED 0

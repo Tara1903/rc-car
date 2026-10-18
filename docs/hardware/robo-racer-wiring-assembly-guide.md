@@ -1,10 +1,10 @@
 # ROBO RACER 4WD — PHYSICAL WIRING & ASSEMBLY GUIDE
 
-**Document Revision:** v1.2 — Physical Delivery Baseline  
-**Hardware Target:** 4WD Robotic Car Kit | 4× AA Battery Pack (Direct Unswitched) | Dual-Inductor SEPIC DC-DC Converter | 2× L298N Motor Drivers | ESP32 DevKit V1 (30-pin) | 4× TT DC Geared Motors  
-**Related Documents:**  
-- [`robo-racer-full-wiring.svg`](robo-racer-full-wiring.svg) (Master Vector Schematic)  
-- [`robo-racer-wire-by-wire.md`](robo-racer-wire-by-wire.md) (Wire-by-Wire Pinout Table)  
+**Document Revision:** v1.3 — Post-Audit Baseline
+**Hardware Target:** 4WD Robotic Car Kit | 4× AA Alkaline Battery Pack (Direct Unswitched) | Provisional DC-DC Converter (Unverified Topology; BLOCKED — COMPONENT IDENTIFICATION REQUIRED) | 2× L298N Motor Drivers | ESP32 DevKit V1 (30-pin) | 4× TT DC Geared Motors
+**Related Documents:**
+- [`robo-racer-full-wiring.svg`](robo-racer-full-wiring.svg) (Master Vector Schematic)
+- [`robo-racer-wire-by-wire.md`](robo-racer-wire-by-wire.md) (Wire-by-Wire Pinout Table)
 - [`robo-racer-electrical-test-procedure.md`](robo-racer-electrical-test-procedure.md) (Staged Commissioning Procedure)
 
 ---
@@ -22,7 +22,7 @@ Before beginning assembly, inspect the physical parts against the kit inventory:
    - Small zip ties (100mm) and double-sided foam tape or nylon standoffs (M3).
 
 > [!CAUTION]
-> **NO POWER SWITCH IS INSTALLED IN THIS KIT.**  
+> **NO POWER SWITCH IS INSTALLED IN THIS KIT.**
 > Never install batteries into the tray while wiring or tightening terminal screws. The system must remain **100% de-energized** until Stage 1 of the electrical test procedure is completed.
 
 ---
@@ -41,7 +41,7 @@ To maintain a low center of gravity, clean cable routing, and minimal electromag
       │          [ESP32 DevKit V1]                │
       │           (Center Deck)                   │
       │                                           │
-      │       [SEPIC DC-DC Converter]             │
+      │     [Provisional DC-DC Converter]         │
       │          (Center Lower)                   │
       │                                           │
       ├───[Central Star GND & V+ Bus]─────────────┤
@@ -56,7 +56,7 @@ To maintain a low center of gravity, clean cable routing, and minimal electromag
 2. **L298N Driver #1 (Left Drivetrain):** Mount along the left perimeter using 4× M3 nylon standoffs (10–15mm height). Orient the heat sink toward the vehicle center and the logic pins toward the ESP32.
 3. **L298N Driver #2 (Right Drivetrain):** Mount along the right perimeter using 4× M3 nylon standoffs. Orient the heat sink inward and logic pins toward the ESP32.
 4. **ESP32 DevKit V1:** Mount along the vehicle centerline on the upper deck using adhesive nylon standoffs or a mini solderless breadboard. Ensure the Micro-USB port faces rearward or outward for easy firmware flashing and serial debugging.
-5. **SEPIC DC-DC Converter:** Mount centered on the lower deck between the driver boards using M3 nylon standoffs. Orient the blue 3296W trimpot so the brass screw is easily accessible from above with a precision screwdriver.
+5. **Provisional DC-DC Converter:** Mount centered on the lower deck between the driver boards using M3 nylon standoffs. Orient the blue 3296W trimpot so the brass screw is easily accessible from above with a precision screwdriver.
 6. **4× AA Battery Tray:** Mount longitudinally or transversely along the rear deck where its mass sits securely over the rear axle. Secure using dual-lock velcro or zip ties through the chassis perforations for quick removal.
 
 ---
@@ -74,7 +74,7 @@ Each red L298N motor driver board comes from the factory with three black shunt 
   L298N BOARD JUMPER LOCATIONS:
 
       [ HEATSINK ]
-   
+
       ┌──────────┐
       │  5V-EN   │  <─── [ACTION: PULL AND REMOVE THIS JUMPER]
       └──────────┘       (Disables internal 78M05 regulator to protect it from 5V conflict)
@@ -86,10 +86,10 @@ Each red L298N motor driver board comes from the factory with three black shunt 
 ```
 
 > [!IMPORTANT]
-> **Why `5V-EN` must be REMOVED:**  
+> **Why `5V-EN` must be REMOVED:**
 > When the 5V-EN jumper is present, the L298N's internal 78M05 linear regulator attempts to produce 5.0V from the motor supply rail. However, we are supplying regulated 5.00V from the SEPIC DC-DC converter directly into the `+5V` terminal. If the jumper is left installed, two independent voltage regulators will fight each other on the same rail, causing excessive heating, back-feeding, and regulator destruction!
 >
-> **Why `ENA` and `ENB` jumpers must be REMOVED:**  
+> **Why `ENA` and `ENB` jumpers must be REMOVED:**
 > The factory jumpers hard-wire the H-bridge enables to logic HIGH (+5V). If left in place, the motors can only run at 100% full speed or full stop; speed ramping, reverse dwell, and smooth cornering PWM control will NOT work.
 
 ---
@@ -121,16 +121,18 @@ Each red L298N motor driver board comes from the factory with three black shunt 
    - ESP32 board `GND` pin (Black, 22 AWG).
    - Voltage Divider Resistor $R_2$ ground lead (Black, 24 AWG).
 
-### Phase 3: DC-DC Output Calibration (MANDATORY BEFORE CONNECTING ESP32)
+### Phase 3: DC-DC Identification & Output Calibration (MANDATORY BEFORE CONNECTING ESP32)
 1. **DO NOT connect wires to ESP32 `VIN` or L298N `+5V` yet.**
-2. Connect DC-DC Converter `IN+` to battery positive and `IN-` to star ground.
-3. Insert 4 fresh AA batteries into the tray.
-4. Attach digital multimeter probes in DC Volts mode across DC-DC converter `OUT+` and `OUT-`.
-5. Using a small screwdriver, gently turn the brass adjustment screw on the blue 3296W trimpot:
+2. **IC Marking Inspection Gate:** Inspect the primary switching IC on the blue converter under magnification. Verify that it has true step-down capability from 6.4V to 5.0V. If it is a boost-only module with an LC filter, it cannot regulate down from a fresh alkaline pack.
+3. Connect DC-DC Converter `IN+` to battery positive and `IN-` to star ground.
+4. Insert 4 fresh AA alkaline batteries into the tray (Duracell / Eveready).
+5. Attach digital multimeter probes in DC Volts mode across DC-DC converter `OUT+` and `OUT-`.
+6. Using a small screwdriver, gently turn the brass adjustment screw on the blue 3296W trimpot:
    - Clockwise usually lowers voltage; counter-clockwise usually raises voltage (or vice-versa depending on manufacturer).
-   - Adjust until the meter reads **exactly 5.00 V** (acceptable range: 4.95V to 5.05V).
-6. Disconnect the battery pack.
-7. Now connect:
+   - Adjust until the meter reads **5.00 V no-load** (acceptable range: 4.95V to 5.05V).
+   - *Note:* Load stability under motor inrush is unverified until physical bench load testing. Never assume 5.00V ± 0.05V holds under load without physical verification.
+7. Disconnect the battery pack.
+8. Now connect:
    - DC-DC Converter `OUT+` -> ESP32 `VIN` pin (`PWR-11`).
    - DC-DC Converter `OUT+` -> Left L298N `+5V` terminal (`PWR-12`).
    - DC-DC Converter `OUT+` -> Right L298N `+5V` terminal (`PWR-13`).

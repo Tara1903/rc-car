@@ -80,7 +80,8 @@ class MockVehicleTransport(
                     simLeftSpeed += ((targetLeft - simLeftSpeed) * 0.3f).toInt()
                     simRightSpeed += ((targetRight - simRightSpeed) * 0.3f).toInt()
 
-                    // Voltage sag under motor load (higher internal resistance on 4x AA pack)
+                    // Synthetic voltage sag under motor load for UI demonstration only
+                    // (Simulates high internal resistance of 4x AA alkaline pack; not measured hardware data)
                     val loadSag = ((simLeftSpeed + simRightSpeed) / 510.0f * 600.0f).toInt()
                     val nominalBatt = 6000 - (counter / 20) // Slow natural discharge
                     simBatteryMv = (nominalBatt - loadSag).coerceIn(4400, 6400)

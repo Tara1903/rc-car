@@ -67,16 +67,26 @@
 
 // ============================================================================
 // BATTERY VOLTAGE MONITORING & MULTIMETER CALIBRATION
-// Default Battery Chemistry: 4x AA Cells in Series (~6.0V nominal, 6.4V max, 4.4V cutoff)
-// Voltage divider: R1 = 100kΩ, R2 = 20kΩ (Nominal Ratio: (100k + 20k) / 20k = 6.0:1)
-// 6.4V max input -> ~1.067V at ADC pin (well inside ESP32 0 - 3.3V range)
+// Target Chemistry: 4x AA Alkaline Cells (Duracell / Eveready) in Series
+// Fresh open-circuit: ~1.60V/cell (6.40V pack max)
+// Nominal open-circuit: ~1.50V/cell (6.00V pack nominal)
+// Discharged cutoff: ~1.10V/cell (4.40V pack cutoff threshold)
 //
-// PHYSICAL MULTIMETER CALIBRATION PROCEDURE:
+// NOTE ON VOLTAGE SAG VS TRUE CAPACITY:
+// Ordinary AA alkaline cells exhibit high internal resistance (Ri ≈ 0.15 - 0.30 Ω/cell,
+// total pack Ri ≈ 0.6 - 1.2 Ω fresh, rising as cells deplete). Under 4-motor inrush
+// or stall, loaded terminal voltage sags significantly below open-circuit voltage.
+// ADC measurements reflect instantaneous terminal voltage, NOT coulomb-counted capacity.
+//
+// Voltage divider: R1 = 100kΩ, R2 = 20kΩ (Nominal Ratio: (100k + 20k) / 20k = 6.0:1)
+// 6.4V max input -> ~1.067V at ADC pin (well inside ESP32 0 - 3.3V linear range)
+//
+// PHYSICAL MULTIMETER CALIBRATION PROCEDURE (MANDATORY BEFORE RELYING ON DATA):
 // 1. Measure the battery terminal voltage directly with a calibrated digital multimeter:
-//    Record as V_pack (e.g. 6.15 V).
+//    Record as V_pack (e.g. 6.18 V).
 // 2. Measure the voltage present between ESP32 pin GPIO 34 and GND:
-//    Record as V_adc_pin (e.g. 1.025 V).
-// 3. Calculate true divider ratio: RATIO = V_pack / V_adc_pin (e.g. 6.15 / 1.025 = 6.000).
+//    Record as V_adc_pin (e.g. 1.030 V).
+// 3. Calculate true divider ratio: RATIO = V_pack / V_adc_pin (e.g. 6.18 / 1.030 = 6.000).
 // 4. Enter the computed ratio into BATT_DIVIDER_RATIO below.
 // 5. Change BATT_CALIBRATION_CONFIRMED from 0 to 1.
 //    (If set to 0, telemetry explicitly flags battery data as uncalibrated/invalid).
@@ -86,11 +96,11 @@
 #define BATT_ADC_VREF             3.3f
 #define BATT_ADC_MAX              4095.0f
 
-// Battery Cell Parameters (4x AA Alkaline / NiMH Series Pack)
+// Battery Cell Parameters (4x AA Alkaline Series Pack)
 #define BATT_CELLS                4
-#define BATT_CELL_MAX_MV          1600  // 1.6V fresh cell -> 6400 mV full charge pack
-#define BATT_CELL_NOMINAL_MV      1500  // 1.5V nominal alkaline -> 6000 mV nominal pack
-#define BATT_CELL_CUTOFF_MV       1100  // 1.1V per cell -> 4400 mV low-voltage cutoff threshold
+#define BATT_CELL_MAX_MV          1600  // 1.60V fresh cell -> 6400 mV full charge pack
+#define BATT_CELL_NOMINAL_MV      1500  // 1.50V nominal alkaline -> 6000 mV nominal pack
+#define BATT_CELL_CUTOFF_MV       1100  // 1.10V per cell -> 4400 mV low-voltage cutoff threshold
 #define BATT_MAX_VOLTAGE_MV       (BATT_CELLS * BATT_CELL_MAX_MV)
 #define BATT_LOW_VOLTAGE_MV       (BATT_CELLS * BATT_CELL_CUTOFF_MV)
 
