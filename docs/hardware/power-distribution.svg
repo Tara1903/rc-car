@@ -1,0 +1,156 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1300 850" width="100%" height="100%" style="background-color: #0b0f19; font-family: 'Segoe UI', -apple-system, BlinkMacSystemFont, Roboto, sans-serif;">
+  <defs>
+    <linearGradient id="pwrGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#0e1524"/>
+      <stop offset="100%" stop-color="#141d30"/>
+    </linearGradient>
+    <linearGradient id="railBattery" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#d32f2f"/>
+      <stop offset="100%" stop-color="#f44336"/>
+    </linearGradient>
+    <linearGradient id="railRegulated" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#f57c00"/>
+      <stop offset="100%" stop-color="#ff9800"/>
+    </linearGradient>
+    <linearGradient id="railLogic" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#0288d1"/>
+      <stop offset="100%" stop-color="#03a9f4"/>
+    </linearGradient>
+  </defs>
+
+  <!-- Background -->
+  <rect x="0" y="0" width="1300" height="850" fill="url(#pwrGrad)"/>
+
+  <!-- Title & Banner -->
+  <rect x="30" y="25" width="1240" height="60" rx="8" fill="#131b2e" stroke="#00e5ff" stroke-width="1.5" stroke-opacity="0.4"/>
+  <text x="50" y="62" fill="#00e5ff" font-size="22" font-weight="bold" letter-spacing="1.5">ROBO RACER 4WD — POWER DISTRIBUTION ARCHITECTURE</text>
+  <text x="960" y="61" fill="#8899aa" font-size="13">Star-Ground Topology | Dual Motor Rails | Telemetry Taps</text>
+
+  <!-- ========================================================================= -->
+  <!-- 1. PRIMARY POWER SOURCE & SWITCH                                          -->
+  <!-- ========================================================================= -->
+  <g transform="translate(60, 130)">
+    <rect x="0" y="0" width="260" height="230" rx="8" fill="#162032" stroke="#d32f2f" stroke-width="1.5"/>
+    <text x="130" y="30" fill="#ff5252" font-size="14" font-weight="bold" text-anchor="middle">PRIMARY BATTERY PACK</text>
+    
+    <rect x="25" y="55" width="210" height="70" rx="4" fill="#0c121e" stroke="#253550"/>
+    <text x="130" y="80" fill="#fff" font-size="12" font-weight="bold" text-anchor="middle">4× AA Tray / 3S Li-ion</text>
+    <text x="130" y="100" fill="#8899aa" font-size="11" text-anchor="middle">Nominal: 4.8V – 11.1V</text>
+    <text x="130" y="115" fill="#8899aa" font-size="11" text-anchor="middle">Full Charge Max: 12.6V</text>
+
+    <!-- Master Switch -->
+    <rect x="35" y="150" width="190" height="55" rx="4" fill="#1e2c44" stroke="#ffb300"/>
+    <text x="130" y="172" fill="#ffb300" font-size="11" font-weight="bold" text-anchor="middle">MASTER TOGGLE SWITCH</text>
+    <text x="130" y="192" fill="#eee" font-size="10" text-anchor="middle">Rated: 6A DC | Inrush Protection</text>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- 2. DC-DC CONVERTER BLOCK                                                  -->
+  <!-- ========================================================================= -->
+  <g transform="translate(420, 130)">
+    <rect x="0" y="0" width="360" height="230" rx="8" fill="#162032" stroke="#ff9800" stroke-width="1.5"/>
+    <text x="180" y="30" fill="#ff9800" font-size="14" font-weight="bold" text-anchor="middle">ADJUSTABLE DC-DC CONVERTER</text>
+
+    <!-- Topology Info -->
+    <rect x="25" y="55" width="310" height="85" rx="4" fill="#0c121e" stroke="#253550"/>
+    <text x="180" y="78" fill="#fff" font-size="12" font-weight="bold" text-anchor="middle">Automatic Buck-Boost / SEPIC</text>
+    <text x="180" y="98" fill="#8899aa" font-size="11" text-anchor="middle">Dual 33 µH Power Inductors (Marked 330)</text>
+    <text x="180" y="115" fill="#8899aa" font-size="11" text-anchor="middle">Input Range: 3.5V – 32.0V DC</text>
+    <text x="180" y="130" fill="#00e5ff" font-size="11" font-weight="bold" text-anchor="middle">Calibrated Regulated Output: 6.00 V DC</text>
+
+    <!-- Specs Bar -->
+    <rect x="25" y="155" width="310" height="50" rx="4" fill="#1e2c44"/>
+    <text x="180" y="175" fill="#ffcc00" font-size="11" text-anchor="middle">Continuous Current: 3.0 A | Burst: 4.0 A</text>
+    <text x="180" y="195" fill="#a5d6a7" font-size="10" text-anchor="middle">Efficiency: ~88% @ 6.0V load</text>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- 3. MOTOR DRIVE SUBSYSTEMS (DUAL L298N)                                    -->
+  <!-- ========================================================================= -->
+  <g transform="translate(880, 130)">
+    <rect x="0" y="0" width="360" height="340" rx="8" fill="#162032" stroke="#f44336" stroke-width="1.5"/>
+    <text x="180" y="30" fill="#ff5252" font-size="14" font-weight="bold" text-anchor="middle">MOTOR DRIVER SUBSYSTEM (6.0V BUS)</text>
+
+    <!-- Left L298N -->
+    <rect x="25" y="55" width="310" height="115" rx="4" fill="#0c121e" stroke="#334466"/>
+    <text x="180" y="78" fill="#fff" font-size="12" font-weight="bold" text-anchor="middle">L298N Driver 1 (Left Drivetrain)</text>
+    <text x="180" y="98" fill="#8899aa" font-size="11" text-anchor="middle">Motor Supply: 6.0V terminal block</text>
+    <text x="180" y="118" fill="#8899aa" font-size="11" text-anchor="middle">Channel A: Front-Left TT Motor (0–6V PWM)</text>
+    <text x="180" y="138" fill="#8899aa" font-size="11" text-anchor="middle">Channel B: Rear-Left TT Motor (0–6V PWM)</text>
+    <text x="180" y="155" fill="#ffd54f" font-size="10" text-anchor="middle">Peak Channel Current: 1.1 A Stall</text>
+
+    <!-- Right L298N -->
+    <rect x="25" y="190" width="310" height="115" rx="4" fill="#0c121e" stroke="#334466"/>
+    <text x="180" y="213" fill="#fff" font-size="12" font-weight="bold" text-anchor="middle">L298N Driver 2 (Right Drivetrain)</text>
+    <text x="180" y="233" fill="#8899aa" font-size="11" text-anchor="middle">Motor Supply: 6.0V terminal block</text>
+    <text x="180" y="253" fill="#8899aa" font-size="11" text-anchor="middle">Channel A: Front-Right TT Motor (0–6V PWM)</text>
+    <text x="180" y="273" fill="#8899aa" font-size="11" text-anchor="middle">Channel B: Rear-Right TT Motor (0–6V PWM)</text>
+    <text x="180" y="290" fill="#ffd54f" font-size="10" text-anchor="middle">Peak Channel Current: 1.1 A Stall</text>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- 4. LOGIC & TELEMETRY SUBSYSTEM (ESP32)                                    -->
+  <!-- ========================================================================= -->
+  <g transform="translate(420, 440)">
+    <rect x="0" y="0" width="360" height="340" rx="8" fill="#162032" stroke="#00e5ff" stroke-width="1.5"/>
+    <text x="180" y="30" fill="#00e5ff" font-size="14" font-weight="bold" text-anchor="middle">ESP32 LOGIC &amp; TELEMETRY</text>
+
+    <!-- AMS1117-3.3 Regulator -->
+    <rect x="25" y="55" width="310" height="100" rx="4" fill="#0c121e" stroke="#253550"/>
+    <text x="180" y="78" fill="#fff" font-size="12" font-weight="bold" text-anchor="middle">Onboard AMS1117-3.3 LDO Regulator</text>
+    <text x="180" y="98" fill="#8899aa" font-size="11" text-anchor="middle">Input: VIN Pin (5.0V – 6.0V Rail)</text>
+    <text x="180" y="118" fill="#8899aa" font-size="11" text-anchor="middle">Output: Clean 3.30V System Logic Rail</text>
+    <text x="180" y="138" fill="#4caf50" font-size="11" font-weight="bold" text-anchor="middle">Low Dropout Voltage: 1.1V Max</text>
+
+    <!-- Voltage Divider Telemetry -->
+    <rect x="25" y="175" width="310" height="140" rx="4" fill="#0c121e" stroke="#253550"/>
+    <text x="180" y="198" fill="#00e5ff" font-size="12" font-weight="bold" text-anchor="middle">Battery Voltage Divider Tap</text>
+    <text x="180" y="220" fill="#8899aa" font-size="11" text-anchor="middle">R1: 100 kΩ (1%) | R2: 20 kΩ (1%)</text>
+    <text x="180" y="240" fill="#8899aa" font-size="11" text-anchor="middle">Nominal Division Ratio: 6.00 : 1</text>
+    <text x="180" y="260" fill="#8899aa" font-size="11" text-anchor="middle">Max Input (12.6V) -> 2.10V at GPIO 34</text>
+    <text x="180" y="280" fill="#ffb300" font-size="11" text-anchor="middle">ADC1_CH6 (Linearity Calibrated)</text>
+    <text x="180" y="300" fill="#a5d6a7" font-size="10" text-anchor="middle">Firmware Sanity Window: 6.0V – 13.5V</text>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- 5. COMMON STAR-GROUND BUS (BOTTOM REGION)                                 -->
+  <!-- ========================================================================= -->
+  <g transform="translate(60, 440)">
+    <rect x="0" y="0" width="260" height="340" rx="8" fill="#101826" stroke="#455a64" stroke-width="2"/>
+    <text x="130" y="30" fill="#cfd8dc" font-size="14" font-weight="bold" text-anchor="middle">STAR-GROUND REFERENCE</text>
+
+    <rect x="20" y="55" width="220" height="260" rx="4" fill="#090d14"/>
+    <text x="130" y="80" fill="#90a4ae" font-size="11" font-weight="bold" text-anchor="middle">COMMON GROUND BUS (0V)</text>
+    <text x="130" y="105" fill="#78909c" font-size="10" text-anchor="middle">• Battery Negative Lead</text>
+    <text x="130" y="130" fill="#78909c" font-size="10" text-anchor="middle">• DC-DC Converter IN- &amp; OUT-</text>
+    <text x="130" y="155" fill="#78909c" font-size="10" text-anchor="middle">• Driver 1 (Left L298N) GND</text>
+    <text x="130" y="180" fill="#78909c" font-size="10" text-anchor="middle">• Driver 2 (Right L298N) GND</text>
+    <text x="130" y="205" fill="#78909c" font-size="10" text-anchor="middle">• ESP32 Logic GND Pin</text>
+    <text x="130" y="230" fill="#78909c" font-size="10" text-anchor="middle">• Resistor Divider Low-Side (R2)</text>
+    
+    <text x="130" y="270" fill="#ffd54f" font-size="10" font-weight="bold" text-anchor="middle">NO FLOATING GROUNDS!</text>
+    <text x="130" y="290" fill="#8899aa" font-size="9" text-anchor="middle">Prevents PWM inductive bounce</text>
+  </g>
+
+  <!-- ========================================================================= -->
+  <!-- 6. HIGH-CURRENT POWER RAIL BUS LINES                                      -->
+  <!-- ========================================================================= -->
+  <!-- Raw Battery Rail (Red) -->
+  <path d="M 320 245 L 420 245" fill="none" stroke="url(#railBattery)" stroke-width="5"/>
+  <text x="370" y="235" fill="#ff5252" font-size="10" font-weight="bold" text-anchor="middle">RAW V+</text>
+
+  <!-- Regulated 6.0V Rail (Orange) -->
+  <path d="M 780 245 L 880 245" fill="none" stroke="url(#railRegulated)" stroke-width="5"/>
+  <text x="830" y="235" fill="#ff9800" font-size="10" font-weight="bold" text-anchor="middle">6.0V BUS</text>
+
+  <!-- 6.0V / 5.0V Feed to ESP32 VIN (Cyan) -->
+  <path d="M 600 360 L 600 440" fill="none" stroke="url(#railLogic)" stroke-width="3.5"/>
+  <text x="615" y="405" fill="#00e5ff" font-size="9" font-weight="bold">VIN 5V/6V</text>
+
+  <!-- Battery Tap to Divider -->
+  <path d="M 280 245 C 280 400, 420 520, 445 520" fill="none" stroke="#d32f2f" stroke-width="2" stroke-dasharray="4,2"/>
+
+  <!-- Star Ground Ties -->
+  <path d="M 320 600 L 420 600" fill="none" stroke="#455a64" stroke-width="4"/>
+  <path d="M 780 600 C 830 600, 850 420, 880 420" fill="none" stroke="#455a64" stroke-width="4"/>
+</svg>
