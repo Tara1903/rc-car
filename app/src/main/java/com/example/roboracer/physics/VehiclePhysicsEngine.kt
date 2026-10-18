@@ -119,19 +119,30 @@ data class VehiclePhysicsState(
 /**
  * Deterministic, fixed-timestep 2D/3D differential-drive ground physics engine.
  * Computes vehicle kinetics, motor traction, Coulomb friction, rolling resistance,
- * slip ratio, chassis suspension compliance (pitch squat/dive and cornering roll),
+ * slip ratio, simulated body-response cues (inertial pitch squat/dive and cornering roll),
  * and static obstacle collisions.
+ *
+ * NOTE ON ESTIMATED CONSTANTS:
+ * All physical parameters (vehicle mass, yaw inertia, track width, wheelbase, wheel radius,
+ * peak motor force, no-load wheel speed, collision radius, and friction coefficients) are
+ * UNMEASURED engineering estimates derived from catalog component specifications and CAD scaling.
+ * They are NOT calibrated against physical dynamometer or track data.
+ *
+ * NOTE ON BODY RESPONSE:
+ * The physical vehicle features a rigid laser-cut acrylic chassis directly bolted to TT motors
+ * with NO confirmed mechanical suspension. Pitch and roll angles represent restrained visual
+ * body-response cues (tire rubber deflection and visual feedback) rather than mechanical suspension travel.
  */
 class VehiclePhysicsEngine(
     var surfacePreset: SurfacePreset = SurfacePreset.SMOOTH_FLOOR,
-    val vehicleMass: Float = 0.65f,                 // 0.65 kg total physical mass
-    val yawInertia: Float = 0.0028f,                // kg*m^2 planar moment of inertia
-    val trackWidth: Float = 0.152f,                 // 152 mm lateral track separation
-    val wheelbase: Float = 0.130f,                  // 130 mm wheelbase
-    val wheelRadius: Float = 0.033f,                // 33 mm wheel radius
-    val maxMotorForce: Float = 4.2f,                // Newtons peak tractive force per side
-    val maxNoLoadWheelSpeed: Float = 0.85f,         // m/s free spinning wheel speed
-    val collisionRadius: Float = 0.12f,             // 120 mm vehicle bounding radius
+    val vehicleMass: Float = 0.65f,                 // Estimated: 0.65 kg total physical mass
+    val yawInertia: Float = 0.0028f,                // Estimated: kg*m^2 planar moment of inertia
+    val trackWidth: Float = 0.152f,                 // Estimated: 152 mm lateral track separation
+    val wheelbase: Float = 0.130f,                  // Estimated: 130 mm wheelbase
+    val wheelRadius: Float = 0.033f,                // Estimated: 33 mm wheel radius (66 mm OD)
+    val maxMotorForce: Float = 4.2f,                // Estimated: Newtons peak tractive force per side
+    val maxNoLoadWheelSpeed: Float = 0.85f,         // Estimated: m/s free spinning wheel speed (~240 rpm)
+    val collisionRadius: Float = 0.12f,             // Estimated: 120 mm vehicle bounding radius
     val gravity: Float = 9.81f
 ) {
     // Current state
@@ -367,21 +378,27 @@ class VehiclePhysicsEngine(
         val newWheelAngleL = (s.wheelAngleL + newWheelSpeedL * degPerMeter * dt) % 360.0f
         val newWheelAngleR = (s.wheelAngleR + newWheelSpeedR * degPerMeter * dt) % 360.0f
 
-        // 10. Chassis Suspension Compliance (Pitch & Roll)
+        // 10. Chassis Simulated Body-Response (Inertial Visual Cues)
+        // Rigid double-deck acrylic car has NO mechanical suspension springs/dampers.
+        // Pitch and roll effects are strictly visual inertial response cues (simulating tire rubber deflection
+        // and visual motion cues) to improve digital twin feedback in the 3D viewport.
         val targetPitch = when {
-            isBraking -> 3.2f
-            longitudinalAccel > 0.5f -> (-longitudinalAccel * 0.65f).coerceIn(-3.0f, 0.0f)
-            longitudinalAccel < -0.5f -> (-longitudinalAccel * 0.55f).coerceIn(0.0f, 3.5f)
+            isBraking -> 3.2f // Visual dive cue under braking
+            longitudinalAccel > 0.5f -> (-longitudinalAccel * 0.65f).coerceIn(-3.0f, 0.0f) // Visual squat cue
+            longitudinalAccel < -0.5f -> (-longitudinalAccel * 0.55f).coerceIn(0.0f, 3.5f) // Reverse dive cue
             else -> 0.0f
         }
 
         val lateralAccel = postColLinearSpeed * newAngularVelocity
-        val targetRoll = (-lateralAccel * 1.8f).coerceIn(-3.5f, 3.5f)
+        val targetRoll = (-lateralAccel * 1.8f).coerceIn(-3.5f, 3.5f) // Visual cornering lean cue
 
-        val pitchDamp = (12.0f * dt).coerceAtMost(1.0f)
-        val rollDamp = (12.0f * dt).coerceAtMost(1.0f)
-        val newPitchDeg = s.pitchDeg + (targetPitch - s.pitchDeg) * pitchDamp
-        val newRollDeg = s.rollDeg + (targetRoll - s.rollDeg) * rollDamp
+        val pitchDamp = (12.0f * dt).coerceIn(0.0f, 1.0f)
+        val rollDamp = (12.0f * dt).coerceIn(0.0f, 1.0f)
+        val rawPitch = s.pitchDeg + (targetPitch - s.pitchDeg) * pitchDamp
+        val rawRoll = s.rollDeg + (targetRoll - s.rollDeg) * rollDamp
+
+        val newPitchDeg = if (rawPitch.isNaN() || rawPitch.isInfinite()) 0.0f else rawPitch.coerceIn(-5.0f, 5.0f)
+        val newRollDeg = if (rawRoll.isNaN() || rawRoll.isInfinite()) 0.0f else rawRoll.coerceIn(-5.0f, 5.0f)
 
         // Store updated state
         state = VehiclePhysicsState(

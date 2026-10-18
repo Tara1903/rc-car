@@ -38,6 +38,7 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.example.roboracer.bluetooth.ConnectionStatus
 import com.example.roboracer.bluetooth.protocol.TelemetryFrame
 import com.example.roboracer.control.ResolvedControl
 import com.example.roboracer.physics.DigitalTwinMode
@@ -56,6 +57,8 @@ import kotlinx.coroutines.delay
 fun CarViewport(
     resolvedControl: ResolvedControl,
     telemetry: TelemetryFrame?,
+    connectionStatus: ConnectionStatus = ConnectionStatus.DISCONNECTED,
+    isEmergencyStopped: Boolean = false,
     modifier: Modifier = Modifier
 ) {
     val context = androidx.compose.ui.platform.LocalContext.current
@@ -73,12 +76,14 @@ fun CarViewport(
     var simIsColliding by remember { mutableStateOf(false) }
 
     // Synchronize control inputs and telemetry into 3D renderer
-    LaunchedEffect(resolvedControl, telemetry) {
+    LaunchedEffect(resolvedControl, telemetry, connectionStatus, isEmergencyStopped) {
         renderer.throttle = resolvedControl.normalizedThrottle
         renderer.steering = resolvedControl.normalizedSteering
         renderer.isBraking = resolvedControl.isBrakeEngaged
-        renderer.leftActualSpeed = telemetry?.leftActualSpeed ?: 0
-        renderer.rightActualSpeed = telemetry?.rightActualSpeed ?: 0
+        renderer.leftCommandedPwm = telemetry?.leftActualSpeed ?: 0
+        renderer.rightCommandedPwm = telemetry?.rightActualSpeed ?: 0
+        renderer.isConnected = connectionStatus == ConnectionStatus.CONNECTED
+        renderer.isFailsafe = telemetry?.isFailsafe == true || isEmergencyStopped
     }
 
     // Periodic HUD telemetry polling loop (~10 Hz)
@@ -298,21 +303,21 @@ fun CarViewport(
         ) {
             if (currentMode == DigitalTwinMode.SIMULATION) {
                 Text(
-                    text = "[SIMULATED DYNAMICS]",
+                    text = "[OFFLINE DIGITAL TWIN SIMULATION]",
                     color = AccentCyan,
                     fontSize = 9.sp,
                     fontWeight = FontWeight.Bold,
                     fontFamily = FontFamily.Monospace
                 )
                 Text(
-                    text = "SPD: ${String.format("%.2f", simSpeed)} m/s | YAW: ${String.format("%.0f", simYawDeg)}°",
+                    text = "SIM SPEED: ${String.format("%.2f", simSpeed)} m/s | YAW: ${String.format("%.0f", simYawDeg)}°",
                     color = Color.White,
                     fontSize = 9.sp,
                     fontFamily = FontFamily.Monospace
                 )
                 if (simIsColliding) {
                     Text(
-                        text = "⚠ COLLISION DETECTED",
+                        text = "⚠ COLLISION DETECTED (SIMULATED)",
                         color = AccentRed,
                         fontSize = 9.sp,
                         fontWeight = FontWeight.Bold,
@@ -320,19 +325,78 @@ fun CarViewport(
                     )
                 }
             } else {
-                Text(
-                    text = if (telemetry != null) "[LIVE TELEMETRY]" else "[COMMAND PREDICTION]",
-                    color = if (telemetry != null) AccentGreen else AccentRed,
-                    fontSize = 9.sp,
-                    fontWeight = FontWeight.Bold,
-                    fontFamily = FontFamily.Monospace
-                )
-                Text(
-                    text = "L_PWM: ${telemetry?.leftActualSpeed ?: 0} | R_PWM: ${telemetry?.rightActualSpeed ?: 0}",
-                    color = Color.White,
-                    fontSize = 9.sp,
-                    fontFamily = FontFamily.Monospace
-                )
+                val isConnected = connectionStatus == ConnectionStatus.CONNECTED
+                val isFailsafe = telemetry?.isFailsafe == true || isEmergencyStopped
+                val hasTelemetry = telemetry != null
+
+                when {
+                    !isConnected -> {
+                        Text(
+                            text = "[ESP32 DISCONNECTED]",
+                            color = Color(0xFF9EABB8),
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        Text(
+                            text = "WHEELS LOCKED (NO MOTOR COMMANDS)",
+                            color = Color(0xFF5B6877),
+                            fontSize = 8.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                    isFailsafe -> {
+                        Text(
+                            text = "⚠ [FAILSAFE / E-STOP ACTIVE]",
+                            color = AccentRed,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        Text(
+                            text = "MOTORS KILLED BY SAFETY INTERLOCK",
+                            color = Color.White,
+                            fontSize = 8.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                    hasTelemetry -> {
+                        Text(
+                            text = "[LIVE ESP32 TELEMETRY]",
+                            color = AccentGreen,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        Text(
+                            text = "CMD PWM: L ${telemetry.leftActualSpeed}/255 | R ${telemetry.rightActualSpeed}/255",
+                            color = Color.White,
+                            fontSize = 9.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        Text(
+                            text = "MOTION: COMMAND-DERIVED (NO ENCODERS)",
+                            color = Color(0xFF9EABB8),
+                            fontSize = 8.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                    else -> {
+                        Text(
+                            text = "[LIVE PREDICTION (AWAITING TELEM)]",
+                            color = AccentRed,
+                            fontSize = 9.sp,
+                            fontWeight = FontWeight.Bold,
+                            fontFamily = FontFamily.Monospace
+                        )
+                        Text(
+                            text = "PREDICTED FROM CONTROLLER COMMANDS",
+                            color = Color.White,
+                            fontSize = 8.sp,
+                            fontFamily = FontFamily.Monospace
+                        )
+                    }
+                }
             }
         }
 

@@ -99,12 +99,26 @@ class CarGLSurfaceRenderer(var context: Context? = null) : GLSurfaceView.Rendere
     @Volatile var cameraTargetY: Float = 0.15f
     @Volatile var cameraTargetZ: Float = 0.0f
 
-    // Real-time animation inputs
+    // Real-time animation inputs & hardware telemetry
+    // NOTE: leftCommandedPwm and rightCommandedPwm represent commanded output duty cycles [0..255]
+    // dispatched to the L298N drivers. There are NO physical wheel encoders or tachometers installed.
     @Volatile var throttle: Float = 0f
     @Volatile var steering: Float = 0f
     @Volatile var isBraking: Boolean = false
-    @Volatile var leftActualSpeed: Int = 0
-    @Volatile var rightActualSpeed: Int = 0
+    @Volatile var isConnected: Boolean = false
+    @Volatile var isFailsafe: Boolean = false
+
+    @Volatile var leftCommandedPwm: Int = 0
+    @Volatile var rightCommandedPwm: Int = 0
+
+    // Backward-compatibility aliases for legacy property accessors
+    var leftActualSpeed: Int
+        get() = leftCommandedPwm
+        set(v) { leftCommandedPwm = v }
+
+    var rightActualSpeed: Int
+        get() = rightCommandedPwm
+        set(v) { rightCommandedPwm = v }
 
     private var wheelAngleLeft: Float = 0f
     private var wheelAngleRight: Float = 0f
@@ -291,12 +305,19 @@ class CarGLSurfaceRenderer(var context: Context? = null) : GLSurfaceView.Rendere
                 gModel.carRoot?.animTranslateX = 0.0f
                 gModel.carRoot?.animTranslateZ = 0.0f
                 gModel.carRoot?.animRotationYDeg = 0.0f
+
+                // If disconnected or failsafe is active, wheels are locked (0 PWM)
+                val effectiveLeftPwm = if (isConnected && !isFailsafe) leftCommandedPwm else 0
+                val effectiveRightPwm = if (isConnected && !isFailsafe) rightCommandedPwm else 0
+                val effectiveThrottle = if (isConnected && !isFailsafe) throttle else 0f
+                val effectiveSteering = if (isConnected && !isFailsafe) steering else 0f
+
                 gModel.updateAnimation(
-                    throttle = throttle,
-                    steering = steering,
-                    isBraking = isBraking,
-                    leftPwm = leftActualSpeed,
-                    rightPwm = rightActualSpeed,
+                    throttle = effectiveThrottle,
+                    steering = effectiveSteering,
+                    isBraking = isBraking || isFailsafe || !isConnected,
+                    leftPwm = effectiveLeftPwm,
+                    rightPwm = effectiveRightPwm,
                     dtSeconds = dt
                 )
             }
@@ -320,8 +341,10 @@ class CarGLSurfaceRenderer(var context: Context? = null) : GLSurfaceView.Rendere
                 wheelAngleLeft = -pState.wheelAngleL
                 wheelAngleRight = -pState.wheelAngleR
             } else {
-                val spinSpeedLeft = if (leftActualSpeed > 0) (leftActualSpeed / 255f) * 16f else (throttle * 14f)
-                val spinSpeedRight = if (rightActualSpeed > 0) (rightActualSpeed / 255f) * 16f else (throttle * 14f)
+                val effectiveLeftPwm = if (isConnected && !isFailsafe) leftCommandedPwm else 0
+                val effectiveRightPwm = if (isConnected && !isFailsafe) rightCommandedPwm else 0
+                val spinSpeedLeft = if (effectiveLeftPwm > 0) (effectiveLeftPwm / 255f) * 16f else (throttle * 14f * if (isConnected && !isFailsafe) 1f else 0f)
+                val spinSpeedRight = if (effectiveRightPwm > 0) (effectiveRightPwm / 255f) * 16f else (throttle * 14f * if (isConnected && !isFailsafe) 1f else 0f)
                 wheelAngleLeft -= spinSpeedLeft
                 wheelAngleRight -= spinSpeedRight
             }

@@ -66,17 +66,20 @@ class GltfModel(
         val dt = dtSeconds.coerceIn(0.001f, 0.1f)
 
         // 1. Calculate Left and Right Wheel Angular Velocities
-        // Positive throttle rolls vehicle forward (negative Z in glTF)
+        // NOTE: In Mode B (Live Telemetry), leftPwm and rightPwm originate from the ESP32
+        // firmware ramp generator as commanded PWM duty cycles [0..255], NOT encoder feedback.
         val leftFactor = when {
             isBraking -> 0.0f
             leftPwm > 0 -> (leftPwm / 255.0f) * (if (throttle < 0) -1.0f else 1.0f)
-            else -> (throttle - steering * 0.40f).coerceIn(-1.0f, 1.0f)
+            abs(throttle) < 0.05f && abs(steering) > 0.05f -> steering.coerceIn(-1.0f, 1.0f)
+            else -> (throttle + steering * 0.40f).coerceIn(-1.0f, 1.0f)
         }
 
         val rightFactor = when {
             isBraking -> 0.0f
             rightPwm > 0 -> (rightPwm / 255.0f) * (if (throttle < 0) -1.0f else 1.0f)
-            else -> (throttle + steering * 0.40f).coerceIn(-1.0f, 1.0f)
+            abs(throttle) < 0.05f && abs(steering) > 0.05f -> (-steering).coerceIn(-1.0f, 1.0f)
+            else -> (throttle - steering * 0.40f).coerceIn(-1.0f, 1.0f)
         }
 
         // Full speed wheel rotation rate (~720 deg/sec at 100% duty cycle)
@@ -95,7 +98,8 @@ class GltfModel(
         wheelFR?.animRotationXDeg = rightWheelAngleDeg
         wheelRR?.animRotationXDeg = rightWheelAngleDeg
 
-        // 2. Chassis Dynamics: Pitch & Roll Physics
+        // 2. Chassis Simulated Body-Response (Inertial Visual Cues)
+        // Rigid acrylic car has no physical suspension springs. Body tilt is a visual feedback cue.
         val targetPitch = when {
             isBraking -> 3.2f        // Forward pitch/dive under braking
             throttle > 0 -> -2.6f     // Rear squat under acceleration
@@ -109,10 +113,13 @@ class GltfModel(
         }
 
         // Smooth exponential spring damping towards target
-        val pitchDamp = 1.0f - exp(-10.0f * dt)
-        val rollDamp = 1.0f - exp(-10.0f * dt)
-        currentPitchDeg += (targetPitch - currentPitchDeg) * pitchDamp
-        currentRollDeg += (targetRoll - currentRollDeg) * rollDamp
+        val pitchDamp = (1.0f - exp(-10.0f * dt)).coerceIn(0.0f, 1.0f)
+        val rollDamp = (1.0f - exp(-10.0f * dt)).coerceIn(0.0f, 1.0f)
+        val rawPitch = currentPitchDeg + (targetPitch - currentPitchDeg) * pitchDamp
+        val rawRoll = currentRollDeg + (targetRoll - currentRollDeg) * rollDamp
+
+        currentPitchDeg = if (rawPitch.isNaN() || rawPitch.isInfinite()) 0.0f else rawPitch.coerceIn(-5.0f, 5.0f)
+        currentRollDeg = if (rawRoll.isNaN() || rawRoll.isInfinite()) 0.0f else rawRoll.coerceIn(-5.0f, 5.0f)
 
         chassisRoot?.animPitchDeg = currentPitchDeg
         chassisRoot?.animRollDeg = currentRollDeg

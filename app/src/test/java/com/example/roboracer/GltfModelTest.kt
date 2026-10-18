@@ -3,6 +3,7 @@ package com.example.roboracer
 import com.example.roboracer.renderer.gltf.GltfModel
 import com.example.roboracer.renderer.gltf.GltfParser
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -153,5 +154,40 @@ class GltfModelTest {
         val tire = model.materials.find { it.name.contains("TireRubber") }
         assertNotNull("Tire rubber material must exist", tire)
         assertTrue("Tire roughness must be high (>= 0.6)", tire!!.roughnessFactor >= 0.6f)
+    }
+
+    @Test
+    fun verifyChassisPitchAndRollBoundedness() {
+        val assetFile = findAssetFile()
+        val model: GltfModel = FileInputStream(assetFile).use { fis ->
+            GltfParser.parse(fis)
+        }
+        val chassis = model.chassisRoot!!
+
+        // Apply aggressive alternating commands with high dtSeconds
+        val testInputs = listOf(
+            Triple(1.0f, 1.0f, false),
+            Triple(-1.0f, -1.0f, false),
+            Triple(1.0f, 0.0f, true),
+            Triple(0.0f, 1.0f, false)
+        )
+        for ((th, st, brk) in testInputs) {
+            for (i in 0 until 50) {
+                model.updateAnimation(
+                    throttle = th,
+                    steering = st,
+                    isBraking = brk,
+                    leftPwm = 255,
+                    rightPwm = 255,
+                    dtSeconds = 0.1f
+                )
+                assertFalse("Pitch must not be NaN", chassis.animPitchDeg.isNaN())
+                assertFalse("Pitch must not be Infinite", chassis.animPitchDeg.isInfinite())
+                assertFalse("Roll must not be NaN", chassis.animRollDeg.isNaN())
+                assertFalse("Roll must not be Infinite", chassis.animRollDeg.isInfinite())
+                assertTrue("Pitch must be clamped within [-5.0, 5.0], got ${chassis.animPitchDeg}", chassis.animPitchDeg in -5.0f..5.0f)
+                assertTrue("Roll must be clamped within [-5.0, 5.0], got ${chassis.animRollDeg}", chassis.animRollDeg in -5.0f..5.0f)
+            }
+        }
     }
 }

@@ -84,6 +84,8 @@ fun ControllerScreen(
                 CarViewport(
                     resolvedControl = resolvedControl,
                     telemetry = telemetry,
+                    connectionStatus = connectionStatus,
+                    isEmergencyStopped = isEmergencyStopped,
                     modifier = Modifier.fillMaxSize()
                 )
 

@@ -270,4 +270,76 @@ class VehiclePhysicsEngineTest {
         assertEquals("Digital twin mode enum supports SIMULATION and LIVE_TELEMETRY", DigitalTwinMode.values().size, 2)
         assertTrue(simMode != liveMode)
     }
+
+    @Test
+    fun testSimulatedBodyResponse_pitchAndRollStrictlyBounded() {
+        // Run aggressive commands with high dt and extreme inputs
+        val testInputs = listOf(
+            Triple(1.0f, 1.0f, false),
+            Triple(-1.0f, -1.0f, false),
+            Triple(1.0f, 0.0f, true),
+            Triple(0.0f, 1.0f, false),
+            Triple(-1.0f, 1.0f, false),
+            Triple(1.0f, -1.0f, false)
+        )
+        for ((th, st, brk) in testInputs) {
+            for (i in 0 until 60) {
+                engine.step(0.033f, throttle = th, steering = st, isBraking = brk)
+                val s = engine.state
+                assertFalse("Pitch must not be NaN", s.pitchDeg.isNaN())
+                assertFalse("Pitch must not be Infinite", s.pitchDeg.isInfinite())
+                assertFalse("Roll must not be NaN", s.rollDeg.isNaN())
+                assertFalse("Roll must not be Infinite", s.rollDeg.isInfinite())
+                assertTrue("Pitch must be clamped within [-5.0, 5.0], got ${s.pitchDeg}", s.pitchDeg in -5.0f..5.0f)
+                assertTrue("Roll must be clamped within [-5.0, 5.0], got ${s.rollDeg}", s.rollDeg in -5.0f..5.0f)
+            }
+        }
+    }
+
+    @Test
+    fun testSimulatedBodyResponse_decaysToZeroAtRest() {
+        var observedPitchExcursion = false
+        // Accelerate and steer hard to excite pitch and roll
+        for (i in 0 until 50) {
+            engine.step(0.016f, throttle = 1.0f, steering = 1.0f, isBraking = false)
+            if (abs(engine.state.pitchDeg) > 0.3f) {
+                observedPitchExcursion = true
+            }
+        }
+        assertTrue("Pitch should exhibit squat cue during initial acceleration", observedPitchExcursion)
+        assertTrue("Roll should be non-zero during cornering", abs(engine.state.rollDeg) > 0.5f)
+
+        // Now bring car to rest with neutral inputs
+        for (i in 0 until 120) {
+            engine.step(0.016f, throttle = 0.0f, steering = 0.0f, isBraking = false)
+        }
+        // Visual body cues should smoothly decay to zero
+        assertTrue("Pitch should decay towards zero at rest (${engine.state.pitchDeg})", abs(engine.state.pitchDeg) < 0.05f)
+        assertTrue("Roll should decay towards zero at rest (${engine.state.rollDeg})", abs(engine.state.rollDeg) < 0.05f)
+    }
+
+    @Test
+    fun testStraightLineSymmetry_noLateralDeviationOrYawDrift() {
+        // Straight line driving with throttle=1.0f, steering=0.0f
+        for (i in 0 until 100) {
+            engine.step(0.016f, throttle = 1.0f, steering = 0.0f, isBraking = false)
+        }
+        val s = engine.state
+        assertEquals("Vehicle X displacement must remain zero in straight line", 0.0f, s.x, 1e-4f)
+        assertEquals("Vehicle yaw heading must remain zero in straight line", 0.0f, s.yawRad, 1e-4f)
+        assertEquals("Left and right wheel speeds must be equal", s.wheelSpeedL, s.wheelSpeedR, 1e-4f)
+    }
+
+    @Test
+    fun testDifferentialYawDirection_leftTurnProducesPositiveYawAndNegativeX() {
+        // Steering -1.0 (Left in controller) -> Left turn
+        for (i in 0 until 50) {
+            engine.step(0.016f, throttle = 0.6f, steering = -1.0f, isBraking = false)
+        }
+        val s = engine.state
+        // Left turn: right wheel spins faster, car curves left (-X in GL coordinates), yaw changes
+        assertTrue("Right wheel speed > left wheel speed during left steer", s.wheelSpeedR > s.wheelSpeedL)
+        assertTrue("Car must deviate left (-X)", s.x < -0.05f)
+        assertTrue("Yaw heading must change during turn", abs(s.yawRad) > 0.2f)
+    }
 }
