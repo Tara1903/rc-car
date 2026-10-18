@@ -120,18 +120,22 @@ Follow the strict electrical sequence below. Refer to `docs/hardware/electrical-
    - ESP32 **GPIO 26** -> `DRV-02` **ENB** (Orange wire)
 
 ### Sub-step C: Voltage Divider Telemetry Tap
-1. Solder resistor $R1 = 100\,\text{k}\Omega$ (1% metal film) from the switched battery positive lead to a tie point.
-2. Solder resistor $R2 = 20\,\text{k}\Omega$ (1% metal film) from the tie point to common ground.
-3. Connect a yellow jumper wire from the $R1 / R2$ junction directly to ESP32 **GPIO 34**.
+1. Solder resistor $R1 = 100\,\text{k}\Omega$ (1% metal film) from the Central V+ Distribution Bus (raw battery positive) to a tie point.
+2. Solder resistor $R2 = 20\,\text{k}\Omega$ (1% metal film) from the tie point to the Central Star Ground.
+3. Connect a cyan/yellow jumper wire from the $R1 / R2$ junction directly to ESP32 **GPIO 34**.
 4. Wrap the resistors in heat-shrink tubing to prevent contact with conductive chassis standoffs.
 
 ### Sub-step D: Power Rail & Common Star-Ground Distribution
 > [!CAUTION]
-> **DO NOT CONNECT THE BATTERY TO THE DRIVERS OR ESP32 YET.** The DC-DC converter output voltage must be calibrated with a multimeter prior to final electrical connection.
+> **NO MASTER POWER SWITCH IS INSTALLED IN THIS VEHICLE.**
+> The system operates on direct unswitched battery connections. Safe manual power isolation is achieved by unplugging the inline battery connector or removing 1 AA cell.
+> **DO NOT CONNECT THE 5.0V OUTPUT TO THE ESP32 OR DRIVERS YET.** The DC-DC converter output voltage must be calibrated with a multimeter to **5.00V ± 0.05V** prior to connecting sensitive logic circuits.
 
-1. Connect the battery negative lead to the Common Ground Bus.
-2. Connect DC-DC Converter `IN-` and `OUT-` to the Common Ground Bus.
-3. Connect `DRV-01` `GND` terminal and `DRV-02` `GND` terminal to the Common Ground Bus.
-4. Connect ESP32 `GND` pin to the Common Ground Bus.
-5. Connect battery positive lead through the master toggle switch to DC-DC Converter `IN+`.
-6. Leave DC-DC Converter `OUT+` disconnected from all boards until Stage 3 of the testing procedure is completed.
+1. Connect the 4× AA battery negative lead to the Central Star Ground Bus.
+2. Connect DC-DC Converter `IN-` and `OUT-` to the Central Star Ground Bus.
+3. Connect `DRV-01` `GND` terminal and `DRV-02` `GND` terminal to the Central Star Ground Bus.
+4. Connect ESP32 `GND` pin to the Central Star Ground Bus.
+5. Connect 4× AA battery positive lead to the Central V+ Distribution Bus (branching directly to `DRV-01` `+12V`, `DRV-02` `+12V`, and DC-DC Converter `IN+`).
+6. Leave DC-DC Converter `OUT+` disconnected from all boards until Stage 2/3 of the electrical testing procedure is completed (verified at 5.00V ± 0.05V).
+7. Remove all three jumpers on each L298N driver board: `5V-EN` (regulator disable), `ENA` (PWM speed control), and `ENB` (PWM speed control).
+8. For full physical harness routing and cable management diagrams, refer to [`robo-racer-wiring-assembly-guide.md`](robo-racer-wiring-assembly-guide.md) and [`robo-racer-full-wiring.svg`](robo-racer-full-wiring.svg).

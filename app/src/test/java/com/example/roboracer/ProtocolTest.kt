@@ -51,8 +51,8 @@ class ProtocolTest {
         buf[4] = 0x01.toByte() // State: RUNNING
         buf[5] = 150.toByte()  // Left actual speed
         buf[6] = 160.toByte()  // Right actual speed
-        buf[7] = 0x2E.toByte() // Batt MSB (11800 mV = 0x2E18)
-        buf[8] = 0x18.toByte() // Batt LSB
+        buf[7] = 0x17.toByte() // Batt MSB (6000 mV = 0x1770)
+        buf[8] = 0x70.toByte() // Batt LSB
         buf[9] = 0x00.toByte() // Fault flags
         buf[10] = 105.toByte() // Counter
         buf[11] = Crc8.calculate(buf, 0, 11)
@@ -63,9 +63,9 @@ class ProtocolTest {
         assertEquals(SystemState.RUNNING, parsed!!.state)
         assertEquals(150, parsed.leftActualSpeed)
         assertEquals(160, parsed.rightActualSpeed)
-        assertEquals(11800, parsed.batteryMilliVolts)
-        assertEquals(11.8f, parsed.batteryVolts!!, 0.01f)
-        assertNotNull(parsed.batteryPercentage)
+        assertEquals(6000, parsed.batteryMilliVolts)
+        assertEquals(6.0f, parsed.batteryVolts!!, 0.01f)
+        assertEquals(80, parsed.batteryPercentage)
         assertEquals(0, parsed.faultFlags)
         assertEquals(105, parsed.fwCounter)
 
@@ -77,7 +77,7 @@ class ProtocolTest {
         assertNotNull(simParsed.speedKmh)
         assertTrue(simParsed.speedKmh!! > 0)
 
-        // Sub-3000mV ADC reading (uncalibrated or disconnected) produces null voltage/percentage
+        // Sub-3500mV ADC reading (uncalibrated, disconnected, or heavy brownout) produces null voltage/percentage
         val lowAdc = parsed.copy(batteryMilliVolts = 1500)
         assertNull(lowAdc.batteryVolts)
         assertNull(lowAdc.batteryPercentage)
@@ -122,8 +122,8 @@ class ProtocolTest {
         buf[4] = 0x01.toByte() // RUNNING
         buf[5] = 100.toByte()
         buf[6] = 100.toByte()
-        buf[7] = 0x2E.toByte() // 11800 mV
-        buf[8] = 0x18.toByte()
+        buf[7] = 0x17.toByte() // 6000 mV
+        buf[8] = 0x70.toByte()
         buf[9] = TelemetryFrame.FAULT_BATT_INVALID.toByte() // 0x10
         buf[10] = 1.toByte()
         buf[11] = Crc8.calculate(buf, 0, 11)

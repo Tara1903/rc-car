@@ -59,13 +59,14 @@ Robo Racer is a production-grade native Android application and ESP32 embedded f
   - Driver 1: Controls Front-Left and Rear-Left motors.
   - Driver 2: Controls Front-Right and Rear-Right motors.
 - **Power Architecture:**
-  - 3S Li-ion battery pack (11.1V nominal, 12.6V maximum).
-  - Regulated down to 6.0V via amiciSolar XL6019 high-efficiency buck-boost DC-DC converter for motor power rails.
-  - ESP32 powered via regulated 5V on VIN pin or micro-USB.
+  - 4× AA battery pack (~6.0V nominal, 6.4V fresh pack max, 4.4V cutoff threshold).
+  - Direct unswitched battery positive rail supplying both L298N motor drivers (`+12V` terminals) and DC-DC converter input (`IN+`).
+  - **No master power switch installed**: Safe manual isolation by unplugging the inline battery connector or removing one AA cell.
+  - Dual-inductor SEPIC auto buck-boost DC-DC converter calibrated to deliver **5.00V ± 0.05V** regulated logic supply to ESP32 `VIN` and both L298N `+5V` terminals (with onboard `5V-EN` jumpers removed).
 - **Battery Voltage Divider:**
   - $R_1 = 100\,\text{k}\Omega$, $R_2 = 20\,\text{k}\Omega$ (Divider ratio: $6.0:1$).
   - Connected to `GPIO 34` (ADC1 Channel 6).
-  - At $12.6\,\text{V}$, pin voltage is $2.1\,\text{V}$, comfortably within the ESP32 ADC $0 - 3.3\,\text{V}$ input range.
+  - At $6.4\,\text{V}$ maximum fresh battery voltage, pin voltage is $\sim 1.067\,\text{V}$, well within the ESP32 ADC $0 - 3.3\,\text{V}$ linear input range.
 
 ---
 

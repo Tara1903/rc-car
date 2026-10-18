@@ -33,7 +33,7 @@ class MockVehicleTransport(
     private var lastCmd: CommandFrame? = null
     private var simLeftSpeed = 0
     private var simRightSpeed = 0
-    private var simBatteryMv = 11850 // 11.85V
+    private var simBatteryMv = 6000 // 6.00V nominal 4x AA pack
 
     override fun getBondedDevices(): List<DiscoveredDevice> = listOf(
         DiscoveredDevice("ROBO-RACER-ESP32 (Simulated)", "00:11:22:33:44:55"),
@@ -80,10 +80,10 @@ class MockVehicleTransport(
                     simLeftSpeed += ((targetLeft - simLeftSpeed) * 0.3f).toInt()
                     simRightSpeed += ((targetRight - simRightSpeed) * 0.3f).toInt()
 
-                    // Voltage sag under motor load
-                    val loadSag = ((simLeftSpeed + simRightSpeed) / 510.0f * 350.0f).toInt()
-                    val nominalBatt = 11800 - (counter / 20) // Very slow natural discharge
-                    simBatteryMv = (nominalBatt - loadSag).coerceIn(9800, 12600)
+                    // Voltage sag under motor load (higher internal resistance on 4x AA pack)
+                    val loadSag = ((simLeftSpeed + simRightSpeed) / 510.0f * 600.0f).toInt()
+                    val nominalBatt = 6000 - (counter / 20) // Slow natural discharge
+                    simBatteryMv = (nominalBatt - loadSag).coerceIn(4400, 6400)
                 }
 
                 val state = if (simLeftSpeed > 0 || simRightSpeed > 0) SystemState.RUNNING else SystemState.IDLE

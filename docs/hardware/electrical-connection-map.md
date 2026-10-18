@@ -24,14 +24,18 @@ Controls Front-Left Motor (`ACT-01_FL`) and Rear-Left Motor (`ACT-01_RL`).
 | **MOT-L02** | `DRV-01` Terminal `OUT2` | Motor Front-Left Terminal (-) | â€” | Channel A Negative Motor Drive | Black | 0â€“6.0V PWM, up to 1.1A stall | **VERIFIED** |
 | **MOT-L03** | `DRV-01` Terminal `OUT3` | Motor Rear-Left Terminal (+) | â€” | Channel B Positive Motor Drive | Red | 0â€“6.0V PWM, up to 1.1A stall | **VERIFIED** |
 | **MOT-L04** | `DRV-01` Terminal `OUT4` | Motor Rear-Left Terminal (-) | â€” | Channel B Negative Motor Drive | Black | 0â€“6.0V PWM, up to 1.1A stall | **VERIFIED** |
-| **PWR-L01** | DC-DC Converter `OUT+` Bus | `DRV-01` Screw Terminal `12V` | â€” | Motor Power Supply Input | Red (20 AWG) | 6.00V DC Regulated, 2.0A peak | **ESTIMATED** |
-| **PWR-L02** | Common Ground Bus | `DRV-01` Screw Terminal `GND` | â€” | Power and Logic Ground Return | Black (20 AWG)| 0V Reference | **VERIFIED** |
+| **PWR-L01** | Central V+ Distribution Bus | `DRV-01` Screw Terminal `+12V` (VS) | — | Unswitched Motor Supply Rail | Red (20 AWG) | ~6.0V Nominal (4.4V–6.4V DC), up to 2.2A stall | **VERIFIED** |
+| **PWR-L02** | Central Star Ground Bus | `DRV-01` Screw Terminal `GND` | — | High-Current Motor Return | Black (20 AWG)| 0V Reference | **VERIFIED** |
+| **PWR-L03** | DC-DC Converter `OUT+` (5.0V Logic) | `DRV-01` Screw Terminal `+5V` | — | Regulated Logic Gate Supply | Cyan (22 AWG) | 5.00V ± 0.05V DC, < 36 mA | **VERIFIED** |
 
-*Note on Jumpers:* Remove the factory black shorting jumpers from `ENA` and `ENB` on `DRV-01` to enable independent software PWM speed control.
+*Note on Jumpers:*
+1. **`5V-EN` Jumper:** **REMOVED** on `DRV-01` to isolate internal 78M05 linear regulator and prevent reverse-feeding the 5.0V logic rail.
+2. **`ENA` Jumper:** **REMOVED** to enable ESP32 GPIO 18 hardware PWM speed control.
+3. **`ENB` Jumper:** **REMOVED** to enable ESP32 GPIO 25 hardware PWM speed control.
 
 ---
 
-### 1.2 Right Drivetrain Driver (`DRV-02` â€” L298N Right Module)
+### 1.2 Right Drivetrain Driver (`DRV-02` — L298N Right Module)
 Controls Front-Right Motor (`ACT-01_FR`) and Rear-Right Motor (`ACT-01_RR`).
 
 | Conn ID | Source Component & Terminal | Destination Component & Terminal | ESP32 GPIO | Function / Signal Type | Wire Color | Operating Voltage / Current | Status / Evidence |
@@ -42,31 +46,37 @@ Controls Front-Right Motor (`ACT-01_FR`) and Rear-Right Motor (`ACT-01_RR`).
 | **SIG-R04** | ESP32 Header Pin 27 | `DRV-02` Logic Header `IN3` | **GPIO 27** | Rear-Right Direction (Forward = HIGH) | White | 3.3V Logic, < 5 mA | **VERIFIED** |
 | **SIG-R05** | ESP32 Header Pin 14 | `DRV-02` Logic Header `IN4` | **GPIO 14** | Rear-Right Direction (Backward = HIGH) | Purple | 3.3V Logic, < 5 mA | **VERIFIED** |
 | **SIG-R06** | ESP32 Header Pin 26 | `DRV-02` Logic Header `ENB` | **GPIO 26** | Rear-Right Speed (LEDC PWM Ch 3, 20 kHz) | Orange | 3.3V Logic, < 5 mA | **VERIFIED** |
-| **MOT-R01** | `DRV-02` Terminal `OUT1` | Motor Front-Right Terminal (+) | â€” | Channel A Positive Motor Drive | Red | 0â€“6.0V PWM, up to 1.1A stall | **VERIFIED** |
-| **MOT-R02** | `DRV-02` Terminal `OUT2` | Motor Front-Right Terminal (-) | â€” | Channel A Negative Motor Drive | Black | 0â€“6.0V PWM, up to 1.1A stall | **VERIFIED** |
-| **MOT-R03** | `DRV-02` Terminal `OUT3` | Motor Rear-Right Terminal (+) | â€” | Channel B Positive Motor Drive | Red | 0â€“6.0V PWM, up to 1.1A stall | **VERIFIED** |
-| **MOT-R04** | `DRV-02` Terminal `OUT4` | Motor Rear-Right Terminal (-) | â€” | Channel B Negative Motor Drive | Black | 0â€“6.0V PWM, up to 1.1A stall | **VERIFIED** |
-| **PWR-R01** | DC-DC Converter `OUT+` Bus | `DRV-02` Screw Terminal `12V` | â€” | Motor Power Supply Input | Red (20 AWG) | 6.00V DC Regulated, 2.0A peak | **ESTIMATED** |
-| **PWR-R02** | Common Ground Bus | `DRV-02` Screw Terminal `GND` | â€” | Power and Logic Ground Return | Black (20 AWG)| 0V Reference | **VERIFIED** |
+| **MOT-R01** | `DRV-02` Terminal `OUT1` | Motor Front-Right Terminal (+) | — | Channel A Positive Motor Drive | Red | 0–6.0V PWM, up to 1.1A stall | **VERIFIED** |
+| **MOT-R02** | `DRV-02` Terminal `OUT2` | Motor Front-Right Terminal (-) | — | Channel A Negative Motor Drive | Black | 0–6.0V PWM, up to 1.1A stall | **VERIFIED** |
+| **MOT-R03** | `DRV-02` Terminal `OUT3` | Motor Rear-Right Terminal (+) | — | Channel B Positive Motor Drive | Red | 0–6.0V PWM, up to 1.1A stall | **VERIFIED** |
+| **MOT-R04** | `DRV-02` Terminal `OUT4` | Motor Rear-Right Terminal (-) | — | Channel B Negative Motor Drive | Black | 0–6.0V PWM, up to 1.1A stall | **VERIFIED** |
+| **PWR-R01** | Central V+ Distribution Bus | `DRV-02` Screw Terminal `+12V` (VS) | — | Unswitched Motor Supply Rail | Red (20 AWG) | ~6.0V Nominal (4.4V–6.4V DC), up to 2.2A stall | **VERIFIED** |
+| **PWR-R02** | Central Star Ground Bus | `DRV-02` Screw Terminal `GND` | — | High-Current Motor Return | Black (20 AWG)| 0V Reference | **VERIFIED** |
+| **PWR-R03** | DC-DC Converter `OUT+` (5.0V Logic) | `DRV-02` Screw Terminal `+5V` | — | Regulated Logic Gate Supply | Cyan (22 AWG) | 5.00V ± 0.05V DC, < 36 mA | **VERIFIED** |
 
-*Note on Jumpers:* Remove the factory black shorting jumpers from `ENA` and `ENB` on `DRV-02` to enable independent software PWM speed control.
+*Note on Jumpers:*
+1. **`5V-EN` Jumper:** **REMOVED** on `DRV-02` to isolate internal 78M05 linear regulator.
+2. **`ENA` Jumper:** **REMOVED** to enable ESP32 GPIO 23 hardware PWM speed control.
+3. **`ENB` Jumper:** **REMOVED** to enable ESP32 GPIO 26 hardware PWM speed control.
 
 ---
 
-### 1.3 Power Distribution Network & Voltage Telemetry
+### 1.3 Power Distribution Network & Voltage Telemetry (Direct Unswitched Architecture)
+
+> [!NOTE]
+> **NO POWER SWITCH INSTALLED**: The vehicle uses direct unswitched battery connections. Safe manual isolation is accomplished by unplugging the inline battery connector or removing one AA cell.
 
 | Conn ID | Source Component & Terminal | Destination Component & Terminal | ESP32 GPIO | Function / Power Rail | Wire Color | Voltage / Current Rating | Status / Evidence |
 |---|---|---|:---:|---|---|---|:---:|
-| **PWR-01** | Battery Holder Positive Lead | Power Switch Terminal 1 | â€” | Raw Battery Supply | Red (18 AWG) | 4.8Vâ€“12.6V, 5A burst | **ESTIMATED** |
-| **PWR-02** | Power Switch Terminal 2 | DC-DC Converter `IN+` | â€” | Switched Battery Supply | Red (18 AWG) | 4.8Vâ€“12.6V, 5A burst | **ESTIMATED** |
-| **PWR-03** | Battery Holder Negative Lead | Common Ground Bus / `IN-` | â€” | Battery Return | Black (18 AWG)| 0V Reference | **ESTIMATED** |
-| **PWR-04** | DC-DC Converter `OUT+` | Motor Supply Bus (6.0V) | â€” | Regulated Motor Rail | Red (20 AWG) | 6.00V DC, 3A continuous | **ESTIMATED** |
-| **PWR-05** | DC-DC Converter `OUT-` | Common Ground Bus | â€” | System Ground Return | Black (20 AWG)| 0V Reference | **VERIFIED** |
-| **PWR-06** | DC-DC Converter `OUT+` (or 5V) | ESP32 Header Pin `VIN` (5V) | â€” | Microcontroller Power Supply | Red (24 AWG) | 5.0Vâ€“6.0V DC (AMS1117 in) | **ESTIMATED** |
-| **PWR-07** | Common Ground Bus | ESP32 Header Pin `GND` | â€” | Microcontroller Logic Ground | Black (24 AWG)| 0V Reference | **VERIFIED** |
-| **TEL-01** | Battery Raw Positive (Switched) | Resistor R1 (100 kÎ©) Side A | â€” | High Side of Voltage Divider | Red (26 AWG) | 4.8Vâ€“12.6V | **VERIFIED** |
-| **TEL-02** | Resistor R1 / R2 Junction | ESP32 Header Pin 34 | **GPIO 34** | Attenuated ADC Telemetry Input | Yellow (26 AWG) | 0.8Vâ€“2.10V (Safe < 3.3V) | **VERIFIED** |
-| **TEL-03** | Resistor R2 (20 kÎ©) Side B | Common Ground Bus | â€” | Low Side of Voltage Divider | Black (26 AWG)| 0V Reference | **VERIFIED** |
+| **PWR-01** | 4× AA Battery Tray Positive Lead | Central V+ Distribution Bus | — | Unswitched Raw Battery Rail | Red (20 AWG) | 4.4V–6.4V DC, 5A burst | **VERIFIED** |
+| **PWR-02** | 4× AA Battery Tray Negative Lead | Central Star Ground (GND) Bus | — | Main Battery Ground Return | Black (20 AWG)| 0V Reference | **VERIFIED** |
+| **PWR-03** | Central V+ Distribution Bus | DC-DC Converter Terminal `IN+` | — | DC-DC Converter Raw Supply | Red (20 AWG) | 4.4V–6.4V DC, ~1.5A peak | **VERIFIED** |
+| **PWR-04** | Central Star Ground Bus | DC-DC Converter Terminal `IN-` / `OUT-` | — | Converter Input & Output Return | Black (20 AWG)| 0V Reference | **VERIFIED** |
+| **PWR-05** | DC-DC Converter Terminal `OUT+` | ESP32 Header Pin `VIN` (5V Input) | — | Regulated Microcontroller Supply | Cyan (22 AWG) | 5.00V ± 0.05V DC, ~250 mA peak | **VERIFIED** |
+| **PWR-06** | Central Star Ground Bus | ESP32 Header Pin `GND` | — | Microcontroller Reference Ground | Black (22 AWG)| 0V Reference | **VERIFIED** |
+| **TEL-01** | Central V+ Distribution Bus | Resistor R1 (100 kΩ) Side A | — | High Side of Voltage Divider | Red (24 AWG) | 4.4V–6.4V DC | **VERIFIED** |
+| **TEL-02** | Resistor R1 / R2 Center Tap | ESP32 Header Pin 34 | **GPIO 34** | Attenuated ADC Telemetry Input | Cyan (26 AWG) | 0.73V–1.07V DC (Safe < 3.3V) | **VERIFIED** |
+| **TEL-03** | Resistor R2 (20 kΩ) Side B | Central Star Ground Bus | — | Low Side of Voltage Divider | Black (24 AWG)| 0V Reference | **VERIFIED** |
 
 ---
 

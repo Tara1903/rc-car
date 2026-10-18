@@ -13,9 +13,10 @@
 > [!IMPORTANT]
 > **MANDATORY BENCH SAFETY RULES:**
 > 1. **Elevate the Vehicle:** During all initial bench testing (Stages 1 through 10), place the vehicle chassis on a stable wooden block or bench stand so that all four rubber wheels rotate freely in mid-air. Never test motors on the floor until Stage 11.
-> 2. **Never Manipulate Live Wiring:** Always open the master toggle switch or disconnect the battery before adjusting screw terminals, moving jumper pins, or touching heatsinks.
+> 2. **Never Manipulate Live Wiring:** Always disconnect the battery pack (unplug connector or remove 1 AA cell) before adjusting screw terminals, moving jumper pins, or touching heatsinks. (NO master power switch is installed).
 > 3. **L298N Stopping Behavior:** Be technically precise. When `ENA`/`ENB` are `LOW` (or PWM duty cycle is 0) and `IN1`..`IN4` are `LOW`, the L298N output transistors enter a high-impedance state (**High-Z / Free-Running Coast**). This decouples electrical drive safely without thermal dissipation, but does **not** generate active dynamic or regenerative braking torque.
-> 4. **Multimeter Before Motor Connection:** Never feed raw battery or uncalibrated converter output into the L298N or ESP32 without pre-verifying voltage with a digital multimeter.
+> 4. **Multimeter Before Logic Connection:** Never connect the DC-DC converter output to the ESP32 VIN or L298N +5V logic terminals until the output voltage is verified with a digital multimeter to be **5.00V ± 0.05V**.
+> 5. **Authoritative Guide:** See [`robo-racer-electrical-test-procedure.md`](robo-racer-electrical-test-procedure.md) for full wire-by-wire checklists and troubleshooting matrix.
 
 ---
 
@@ -24,21 +25,21 @@
 ```mermaid
 flowchart TD
     S1["Stage 1: Mechanical Inspection & Clearances"] --> S2["Stage 2: Cold Wiring & Short-Circuit Test"]
-    S2 --> S3["Stage 3: Battery & DC-DC Converter Calibration"]
+    S2 --> S3["Stage 3: DC-DC Converter 5.00V Calibration"]
     S3 --> S4["Stage 4: ESP32 USB Flash & Firmware Self-Test"]
-    S4 --> S5["Stage 5: Bluetooth BLE/SPP Telemetry Pairing"]
+    S4 --> S5["Stage 5: Bluetooth SPP Telemetry Pairing"]
     S5 --> S6["Stage 6: Individual Motor Channel Spin (Wheels Elevated)"]
     S6 --> S7["Stage 7: Rotation Direction & Left/Right Mapping Verification"]
     S7 --> S8["Stage 8: Safety Watchdog & Emergency Stop (E-STOP)"]
     S8 --> S9["Stage 9: Reverse Dwell Window & Neutral Re-Arm"]
-    S9 --> S10["Stage 10: Four-Wheel Skid-Steer Differential Test"]
-    S10 --> S11["Stage 11: Controlled Room-Floor Driving & PID Tuning"]
+    S9 --> S10["Stage 10: 4-Motor Full-Load Sag Test"]
+    S10 --> S11["Stage 11: Controlled Floor Driving & Performance Validation"]
 ```
 
 ---
 
 ### Stage 1: Mechanical Inspection & Free Wheel Clearance
-- **Preconditions:** Vehicle mechanically assembled as described in `assembly-guide.md`. No battery installed.
+- **Preconditions:** Vehicle mechanically assembled as described in `robo-racer-wiring-assembly-guide.md`. No battery installed.
 - **Procedure:**
   1. Rotate each of the four wheels by hand through multiple full rotations.
   2. Verify that the tire outer tread does not rub against the acrylic chassis frame, standoffs, or bolt ends.
@@ -50,34 +51,34 @@ flowchart TD
 ---
 
 ### Stage 2: Cold Wiring & Short-Circuit Continuity Test
-- **Preconditions:** Battery disconnected. Master power switch open.
+- **Preconditions:** Battery completely disconnected.
 - **Procedure:**
   1. Set digital multimeter to Continuity Beeper mode ($\Omega$ / Beep).
-  2. Place red probe on the switched battery positive rail and black probe on the Common Ground Bus.
+  2. Place red probe on the Central V+ Distribution Bus and black probe on the Central Star Ground Bus.
   3. Measure resistance. A momentary beep while filter capacitors charge is normal, followed by high resistance ($> 10\,\text{k}\Omega$). A continuous low-impedance beep indicates a dead short.
   4. Probe between each motor output terminal (`OUT1`, `OUT2`, `OUT3`, `OUT4` on both drivers) and the ground bus.
-- **Pass Criteria:** Zero dead shorts between positive rails and ground. Infinite or megaohm resistance on all logic and motor pins to ground.
+- **Pass Criteria:** Zero dead shorts between positive rails and ground (> 5 kΩ). Infinite or megaohm resistance on all logic and motor pins to ground.
 - **Status:** **PENDING PHYSICAL DELIVERY**
 
 ---
 
 ### Stage 3: Battery & DC-DC Converter Multimeter Calibration
-- **Preconditions:** Converter `OUT+` disconnected from L298N drivers and ESP32. Multimeter set to DC Volts ($20\,\text{V}$ range).
+- **Preconditions:** Converter `OUT+` disconnected from ESP32 VIN and L298N +5V terminals. Multimeter set to DC Volts ($20\,\text{V}$ range).
 - **Procedure:**
-  1. Measure raw battery pack voltage directly at battery terminals. Record as $V_{\text{pack}}$ (e.g. $11.85\,\text{V}$).
-  2. Close master toggle switch to power the DC-DC converter input.
+  1. Measure raw battery pack voltage directly at battery terminals. Record as $V_{\text{pack}}$ (e.g. $6.15\,\text{V}$ for fresh alkaline).
+  2. Connect battery positive to converter `IN+` and battery negative to converter `IN-` (or Star GND).
   3. Measure DC voltage across converter `OUT+` and `OUT-` terminals.
-  4. Using a small flathead screwdriver, slowly adjust the blue 3296W cermet potentiometer until output reads **exactly $6.00\,\text{V} \pm 0.05\,\text{V}$**.
+  4. Using a small flathead precision screwdriver, slowly adjust the blue 3296W cermet potentiometer until output reads **exactly $5.00\,\text{V} \pm 0.05\,\text{V}$**.
   5. Verify voltage stability over 60 seconds with no load.
-  6. Measure attenuated voltage divider output at the $R1 / R2$ junction. Verify reading is between $1.0\,\text{V}$ and $2.1\,\text{V}$ (well below ESP32 3.3V damage threshold).
-  7. Power down and safely connect converter `OUT+` to the L298N driver $12\text{V}$ supply terminals and ESP32 VIN pin.
-- **Pass Criteria:** DC-DC converter output securely calibrated to $6.00\,\text{V}$ DC; divider tap safe for GPIO 34.
+  6. Measure attenuated voltage divider output at the $R_1 / R_2$ junction. Verify reading is between $0.73\,\text{V}$ and $1.07\,\text{V}$ (well below ESP32 3.3V damage threshold).
+  7. Disconnect battery and safely connect converter `OUT+` to ESP32 `VIN` pin and both L298N `+5V` terminals (confirming `5V-EN` jumpers are removed).
+- **Pass Criteria:** DC-DC converter output securely calibrated to $5.00\,\text{V} \pm 0.05\,\text{V}$ DC; divider tap safe for GPIO 34.
 - **Status:** **PENDING PHYSICAL DELIVERY**
 
 ---
 
 ### Stage 4: ESP32 USB Power-Up & Firmware Flashing
-- **Preconditions:** Battery power switch OFF. PC running PlatformIO / Arduino IDE connected to ESP32 micro-USB port.
+- **Preconditions:** Battery disconnected. PC running PlatformIO / Arduino IDE connected to ESP32 micro-USB port.
 - **Procedure:**
   1. Flash firmware from `firmware/src/` onto ESP32 via USB.
   2. Open Serial Monitor at 115200 baud.
@@ -101,7 +102,7 @@ flowchart TD
 ---
 
 ### Stage 6: Individual Motor Channel Spin (Wheels Elevated)
-- **Preconditions:** Wheels elevated off ground. Battery switch closed.
+- **Preconditions:** Wheels elevated off ground. Battery pack connected.
 - **Procedure:**
   1. Send individual channel drive test commands at low duty cycle (PWM = 60, ~23%):
      - Channel 1: Front-Left Motor (`OUT1/OUT2` on `DRV-01`).

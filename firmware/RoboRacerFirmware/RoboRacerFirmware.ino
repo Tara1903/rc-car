@@ -53,14 +53,14 @@
 #define MIN_START_DUTY        45
 #define REVERSE_DWELL_MS     500
 
-// Battery Monitoring & Multimeter Calibration
+// Battery Monitoring & Multimeter Calibration (4x AA Alkaline / NiMH Series Pack)
 // To calibrate: measure pack voltage (V_pack) and GPIO 34 pin voltage (V_pin) with digital multimeter.
 // Enter ratio V_pack / V_pin into BATT_DIVIDER_RATIO and set BATT_CALIBRATION_CONFIRMED to 1.
 #define BATT_CALIBRATION_CONFIRMED 0
 #define BATT_DIVIDER_RATIO        6.0f
-#define BATT_MIN_PLAUSIBLE_MV     6000
-#define BATT_MAX_PLAUSIBLE_MV     13500
-#define BATT_LOW_VOLTAGE_MV       9600
+#define BATT_MIN_PLAUSIBLE_MV     3500
+#define BATT_MAX_PLAUSIBLE_MV     7500
+#define BATT_LOW_VOLTAGE_MV       4400
 
 #define FAULT_WATCHDOG_TIMEOUT (1 << 0)
 #define FAULT_LOW_BATTERY      (1 << 1)

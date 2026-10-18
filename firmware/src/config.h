@@ -2,11 +2,11 @@
 #include <Arduino.h>
 
 // ============================================================================
-// ROBO RACER FIRMWARE CONFIGURATION v1.1
+// ROBO RACER FIRMWARE CONFIGURATION v1.2
 // Hardware: Prakti ESP32 Dev Board (30-pin, CP2102)
 // Chassis: 4WD Robot Kit with 4x TT DC Gear Motors
-// Drivers: 2x L298N Dual H-Bridge Motor Drivers
-// Power: 3S Li-ion (11.1V - 12.6V) via amiciSolar XL6019 Buck-Boost to 6.0V
+// Drivers: 2x L298N Dual H-Bridge Motor Drivers (Left & Right 2WD)
+// Power: 4x AA Battery Pack (~6.0V nominal) via Auto Buck-Boost DC-DC to 5.0V Logic
 // ============================================================================
 
 // DEVICE BLUETOOTH IDENTITY
@@ -67,16 +67,16 @@
 
 // ============================================================================
 // BATTERY VOLTAGE MONITORING & MULTIMETER CALIBRATION
-// Default Battery Chemistry: 3S Li-ion (11.1V nominal, 12.6V max, 9.6V cutoff)
+// Default Battery Chemistry: 4x AA Cells in Series (~6.0V nominal, 6.4V max, 4.4V cutoff)
 // Voltage divider: R1 = 100kΩ, R2 = 20kΩ (Nominal Ratio: (100k + 20k) / 20k = 6.0:1)
-// 12.6V max input -> ~2.10V at ADC pin (well inside ESP32 0 - 3.3V range)
+// 6.4V max input -> ~1.067V at ADC pin (well inside ESP32 0 - 3.3V range)
 //
 // PHYSICAL MULTIMETER CALIBRATION PROCEDURE:
 // 1. Measure the battery terminal voltage directly with a calibrated digital multimeter:
-//    Record as V_pack (e.g. 11.85 V).
+//    Record as V_pack (e.g. 6.15 V).
 // 2. Measure the voltage present between ESP32 pin GPIO 34 and GND:
-//    Record as V_adc_pin (e.g. 1.975 V).
-// 3. Calculate true divider ratio: RATIO = V_pack / V_adc_pin (e.g. 11.85 / 1.975 = 6.000).
+//    Record as V_adc_pin (e.g. 1.025 V).
+// 3. Calculate true divider ratio: RATIO = V_pack / V_adc_pin (e.g. 6.15 / 1.025 = 6.000).
 // 4. Enter the computed ratio into BATT_DIVIDER_RATIO below.
 // 5. Change BATT_CALIBRATION_CONFIRMED from 0 to 1.
 //    (If set to 0, telemetry explicitly flags battery data as uncalibrated/invalid).
@@ -86,14 +86,14 @@
 #define BATT_ADC_VREF             3.3f
 #define BATT_ADC_MAX              4095.0f
 
-// Battery Cell Parameters (3S Li-ion)
-#define BATT_CELLS                3
-#define BATT_CELL_MAX_MV          4200  // 4.2V per cell -> 12600 mV full charge
-#define BATT_CELL_NOMINAL_MV      3700  // 3.7V per cell -> 11100 mV nominal
-#define BATT_CELL_CUTOFF_MV       3200  // 3.2V per cell -> 9600 mV low-voltage cutoff threshold
+// Battery Cell Parameters (4x AA Alkaline / NiMH Series Pack)
+#define BATT_CELLS                4
+#define BATT_CELL_MAX_MV          1600  // 1.6V fresh cell -> 6400 mV full charge pack
+#define BATT_CELL_NOMINAL_MV      1500  // 1.5V nominal alkaline -> 6000 mV nominal pack
+#define BATT_CELL_CUTOFF_MV       1100  // 1.1V per cell -> 4400 mV low-voltage cutoff threshold
 #define BATT_MAX_VOLTAGE_MV       (BATT_CELLS * BATT_CELL_MAX_MV)
 #define BATT_LOW_VOLTAGE_MV       (BATT_CELLS * BATT_CELL_CUTOFF_MV)
 
-// Physical Sanity Limits for 3S Pack
-#define BATT_MIN_PLAUSIBLE_MV     6000  // Readings < 6.0V indicate disconnected divider / floating pin
-#define BATT_MAX_PLAUSIBLE_MV     13500 // Readings > 13.5V indicate incorrect divider or overvoltage
+// Physical Sanity Limits for 4x AA Pack
+#define BATT_MIN_PLAUSIBLE_MV     3500  // Readings < 3.5V indicate disconnected divider / floating pin
+#define BATT_MAX_PLAUSIBLE_MV     7500  // Readings > 7.5V indicate incorrect divider, wrong battery pack, or overvoltage

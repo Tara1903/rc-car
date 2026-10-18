@@ -46,7 +46,7 @@ void BatteryMonitor::evaluate_reading(float raw_adc) {
     float pin_voltage = (raw_adc / BATT_ADC_MAX) * BATT_ADC_VREF;
     uint16_t current_mv = (uint16_t)(pin_voltage * BATT_DIVIDER_RATIO * 1000.0f);
 
-    // Range validity check for configured battery pack chemistry (3S Li-ion: 6.0V to 13.5V)
+    // Range validity check for configured battery pack chemistry (4x AA: 3.5V to 7.5V)
     if (current_mv < BATT_MIN_PLAUSIBLE_MV || current_mv > BATT_MAX_PLAUSIBLE_MV) {
         is_valid = false;
         smoothed_mv = 0;

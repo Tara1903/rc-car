@@ -28,22 +28,22 @@ data class TelemetryFrame(
 ) {
     val isFailsafe: Boolean get() = (faultFlags and FAULT_WATCHDOG_TIMEOUT) != 0 || state == SystemState.FAILSAFE
     val isLowBattery: Boolean get() = (faultFlags and FAULT_LOW_BATTERY) != 0 || state == SystemState.LOW_BATTERY
-    val isBatteryInvalid: Boolean get() = (faultFlags and FAULT_BATT_INVALID) != 0 || batteryMilliVolts < 6000 || batteryMilliVolts > 13500
+    val isBatteryInvalid: Boolean get() = (faultFlags and FAULT_BATT_INVALID) != 0 || batteryMilliVolts < 3500 || batteryMilliVolts > 7500
     val isBatteryValid: Boolean get() = !isBatteryInvalid
 
     // Battery voltage in Volts. Returns null if reading is uncalibrated, disconnected, or out of range.
     val batteryVolts: Float?
         get() = if (isBatteryValid) batteryMilliVolts / 1000.0f else null
 
-    // Battery percentage estimate for 3S Li-ion (9.6V empty to 12.6V full).
+    // Battery percentage estimate for 4x AA Alkaline / NiMH pack (4.4V cutoff to 6.4V fresh full charge).
     // Returns null if uncalibrated, disconnected, or invalid.
     val batteryPercentage: Int?
         get() = when {
             !isBatteryValid -> null
-            batteryMilliVolts >= 12600 -> 100
-            batteryMilliVolts <= 9600 -> 0
+            batteryMilliVolts >= 6400 -> 100
+            batteryMilliVolts <= 4400 -> 0
             else -> {
-                val pct = ((batteryMilliVolts - 9600) * 100) / (12600 - 9600)
+                val pct = ((batteryMilliVolts - 4400) * 100) / (6400 - 4400)
                 pct.coerceIn(0, 100)
             }
         }

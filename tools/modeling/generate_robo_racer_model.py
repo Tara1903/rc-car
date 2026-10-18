@@ -26,11 +26,13 @@ import sys
 REPO_ROOT = os.path.abspath(os.path.join(os.path.dirname(__file__), "..", ".."))
 ASSETS_DIR = os.path.join(REPO_ROOT, "app", "src", "main", "assets", "models")
 PREVIEWS_DIR = os.path.join(REPO_ROOT, "docs", "model", "previews")
+HARDWARE_RENDERS_DIR = os.path.join(REPO_ROOT, "docs", "hardware", "renders")
 OUTPUT_BLEND = os.path.join(REPO_ROOT, "tools", "modeling", "robo_racer_car.blend")
 OUTPUT_GLB = os.path.join(ASSETS_DIR, "robo_racer_car.glb")
 
 os.makedirs(ASSETS_DIR, exist_ok=True)
 os.makedirs(PREVIEWS_DIR, exist_ok=True)
+os.makedirs(HARDWARE_RENDERS_DIR, exist_ok=True)
 os.makedirs(os.path.dirname(OUTPUT_BLEND), exist_ok=True)
 
 WHEEL_RADIUS = 0.033        # 66 mm diameter (radius 33 mm)
@@ -260,12 +262,16 @@ def build_materials_palette():
         roughness=0.22
     )
 
-    # Wires
+    # Wires (Physical Color Code matching wire-by-wire specification)
     mats["wire_red"] = create_pbr_material("Mat_WireRed", (0.85, 0.08, 0.08, 1.0), 0.0, 0.45)
     mats["wire_black"] = create_pbr_material("Mat_WireBlack", (0.08, 0.08, 0.08, 1.0), 0.0, 0.45)
     mats["wire_yellow"] = create_pbr_material("Mat_WireYellow", (0.95, 0.80, 0.05, 1.0), 0.0, 0.45)
     mats["wire_green"] = create_pbr_material("Mat_WireGreen", (0.10, 0.75, 0.20, 1.0), 0.0, 0.45)
     mats["wire_blue"] = create_pbr_material("Mat_WireBlue", (0.10, 0.35, 0.90, 1.0), 0.0, 0.45)
+    mats["wire_cyan"] = create_pbr_material("Mat_WireCyan", (0.00, 0.85, 0.95, 1.0), 0.0, 0.45)
+    mats["wire_purple"] = create_pbr_material("Mat_WirePurple", (0.65, 0.25, 0.85, 1.0), 0.0, 0.45)
+    mats["wire_orange"] = create_pbr_material("Mat_WireOrange", (0.95, 0.50, 0.05, 1.0), 0.0, 0.45)
+    mats["wire_white"] = create_pbr_material("Mat_WireWhite", (0.92, 0.92, 0.94, 1.0), 0.0, 0.45)
 
     # Emissive Red Brake Lights
     mats["brake_light_red"] = create_pbr_material(
@@ -1084,30 +1090,79 @@ def build_rear_brake_lights(mats, parent):
     )
 
 def build_wiring_harness(mats, parent):
-    """Builds routed multi-color wires connecting ESP32, L298N drivers, DC-DC converter and battery."""
+    """Builds complete routed multi-color wiring harness connecting ESP32, L298N drivers, DC-DC converter, motors, and battery."""
     harness_group = bpy.data.objects.new("wiring_harness", None)
     bpy.context.collection.objects.link(harness_group)
     harness_group.parent = parent
 
     wire_specs = [
-        # Ribbon Jumpers: ESP32 to Left L298N (ENA, IN1, IN2, IN3, IN4, ENB)
-        ("wire_esp_to_left_0", (-0.016, 0.010, UPPER_DECK_Z + 0.008), (0.001, 0.035, 0.001), mats["wire_yellow"]),
-        ("wire_esp_to_left_1", (-0.018, 0.008, UPPER_DECK_Z + 0.008), (0.001, 0.035, 0.001), mats["wire_green"]),
-        ("wire_esp_to_left_2", (-0.020, 0.006, UPPER_DECK_Z + 0.008), (0.001, 0.035, 0.001), mats["wire_blue"]),
-        ("wire_esp_to_left_3", (-0.022, 0.004, UPPER_DECK_Z + 0.008), (0.001, 0.035, 0.001), mats["wire_yellow"]),
-        # Ribbon Jumpers: ESP32 to Right L298N (ENA, IN1, IN2, IN3, IN4, ENB)
-        ("wire_esp_to_right_0", (0.016, 0.010, UPPER_DECK_Z + 0.008), (0.001, 0.035, 0.001), mats["wire_yellow"]),
-        ("wire_esp_to_right_1", (0.018, 0.008, UPPER_DECK_Z + 0.008), (0.001, 0.035, 0.001), mats["wire_green"]),
-        ("wire_esp_to_right_2", (0.020, 0.006, UPPER_DECK_Z + 0.008), (0.001, 0.035, 0.001), mats["wire_blue"]),
-        ("wire_esp_to_right_3", (0.022, 0.004, UPPER_DECK_Z + 0.008), (0.001, 0.035, 0.001), mats["wire_yellow"]),
-        # Heavy Power Lines: DC-DC Converter to L298N power terminals
-        ("wire_pwr_to_drv_l_pos", (-0.022, -0.040, UPPER_DECK_Z + 0.005), (0.0018, 0.025, 0.0018), mats["wire_red"]),
-        ("wire_pwr_to_drv_l_neg", (-0.025, -0.040, UPPER_DECK_Z + 0.005), (0.0018, 0.025, 0.0018), mats["wire_black"]),
-        ("wire_pwr_to_drv_r_pos", ( 0.022, -0.040, UPPER_DECK_Z + 0.005), (0.0018, 0.025, 0.0018), mats["wire_red"]),
-        ("wire_pwr_to_drv_r_neg", ( 0.025, -0.040, UPPER_DECK_Z + 0.005), (0.0018, 0.025, 0.0018), mats["wire_black"]),
-        # Battery to DC-DC Converter input lines
-        ("wire_batt_to_conv_pos", (-0.004, -0.045, LOWER_DECK_Z + 0.012), (0.002, 0.030, 0.002), mats["wire_red"]),
-        ("wire_batt_to_conv_neg", ( 0.004, -0.045, LOWER_DECK_Z + 0.012), (0.002, 0.030, 0.002), mats["wire_black"])
+        # ---------------------------------------------------------------------
+        # 1. Left Motor Control Signal Ribbon (ESP32 to Left L298N Header)
+        # Pins: ENA (Yellow), IN1 (Green), IN2 (Blue), IN3 (White), IN4 (Purple), ENB (Orange)
+        # ---------------------------------------------------------------------
+        ("wire_sig_l_ena", (-0.018, 0.018, UPPER_DECK_Z + 0.008), (0.014, 0.0012, 0.0012), mats["wire_yellow"]),
+        ("wire_sig_l_in1", (-0.018, 0.015, UPPER_DECK_Z + 0.008), (0.014, 0.0012, 0.0012), mats["wire_green"]),
+        ("wire_sig_l_in2", (-0.018, 0.012, UPPER_DECK_Z + 0.008), (0.014, 0.0012, 0.0012), mats["wire_blue"]),
+        ("wire_sig_l_in3", (-0.018, 0.009, UPPER_DECK_Z + 0.008), (0.014, 0.0012, 0.0012), mats["wire_white"]),
+        ("wire_sig_l_in4", (-0.018, 0.006, UPPER_DECK_Z + 0.008), (0.014, 0.0012, 0.0012), mats["wire_purple"]),
+        ("wire_sig_l_enb", (-0.018, 0.003, UPPER_DECK_Z + 0.008), (0.014, 0.0012, 0.0012), mats["wire_orange"]),
+
+        # ---------------------------------------------------------------------
+        # 2. Right Motor Control Signal Ribbon (ESP32 to Right L298N Header)
+        # Pins: ENA (Yellow), IN1 (Green), IN2 (Blue), IN3 (White), IN4 (Purple), ENB (Orange)
+        # ---------------------------------------------------------------------
+        ("wire_sig_r_ena", (0.018, 0.018, UPPER_DECK_Z + 0.008), (0.014, 0.0012, 0.0012), mats["wire_yellow"]),
+        ("wire_sig_r_in1", (0.018, 0.015, UPPER_DECK_Z + 0.008), (0.014, 0.0012, 0.0012), mats["wire_green"]),
+        ("wire_sig_r_in2", (0.018, 0.012, UPPER_DECK_Z + 0.008), (0.014, 0.0012, 0.0012), mats["wire_blue"]),
+        ("wire_sig_r_in3", (0.018, 0.009, UPPER_DECK_Z + 0.008), (0.014, 0.0012, 0.0012), mats["wire_white"]),
+        ("wire_sig_r_in4", (0.018, 0.006, UPPER_DECK_Z + 0.008), (0.014, 0.0012, 0.0012), mats["wire_purple"]),
+        ("wire_sig_r_enb", (0.018, 0.003, UPPER_DECK_Z + 0.008), (0.014, 0.0012, 0.0012), mats["wire_orange"]),
+
+        # ---------------------------------------------------------------------
+        # 3. Direct Unswitched Battery Positive Rail (Raw ~6.0V Bus - Red, Heavy 20 AWG)
+        # ---------------------------------------------------------------------
+        ("wire_batt_pos_main",    (0.000, -0.042, LOWER_DECK_Z + 0.012), (0.0024, 0.035, 0.0024), mats["wire_red"]),
+        ("wire_batt_pos_to_conv", (0.006, -0.065, UPPER_DECK_Z + 0.006), (0.0022, 0.015, 0.0022), mats["wire_red"]),
+        ("wire_batt_pos_to_drv_l", (-0.016, -0.038, UPPER_DECK_Z + 0.006), (0.018, 0.0022, 0.0022), mats["wire_red"]),
+        ("wire_batt_pos_to_drv_r", ( 0.016, -0.038, UPPER_DECK_Z + 0.006), (0.018, 0.0022, 0.0022), mats["wire_red"]),
+
+        # ---------------------------------------------------------------------
+        # 4. Central Star Ground Bus (0V Return - Black, Heavy 20 AWG)
+        # ---------------------------------------------------------------------
+        ("wire_star_gnd_main",    (-0.005, -0.042, LOWER_DECK_Z + 0.012), (0.0024, 0.035, 0.0024), mats["wire_black"]),
+        ("wire_star_gnd_to_conv", (-0.006, -0.065, UPPER_DECK_Z + 0.006), (0.0022, 0.015, 0.0022), mats["wire_black"]),
+        ("wire_star_gnd_to_drv_l", (-0.016, -0.042, UPPER_DECK_Z + 0.006), (0.018, 0.0022, 0.0022), mats["wire_black"]),
+        ("wire_star_gnd_to_drv_r", ( 0.016, -0.042, UPPER_DECK_Z + 0.006), (0.018, 0.0022, 0.0022), mats["wire_black"]),
+        ("wire_star_gnd_to_esp",  (-0.007,  0.022, UPPER_DECK_Z + 0.006), (0.0018, 0.025, 0.0018), mats["wire_black"]),
+
+        # ---------------------------------------------------------------------
+        # 5. Regulated 5.00V Logic Supply Rail (From DC-DC OUT+ - Cyan, 22 AWG)
+        # ---------------------------------------------------------------------
+        ("wire_logic_5v_to_esp",  ( 0.007,  0.015, UPPER_DECK_Z + 0.007), (0.0018, 0.045, 0.0018), mats["wire_cyan"]),
+        ("wire_logic_5v_to_drv_l", (-0.020, -0.035, UPPER_DECK_Z + 0.007), (0.012, 0.0018, 0.0018), mats["wire_cyan"]),
+        ("wire_logic_5v_to_drv_r", ( 0.020, -0.035, UPPER_DECK_Z + 0.007), (0.012, 0.0018, 0.0018), mats["wire_cyan"]),
+
+        # ---------------------------------------------------------------------
+        # 6. Battery Telemetry Divider Circuit & GPIO 34 Tap
+        # ---------------------------------------------------------------------
+        ("comp_volt_div_block",   ( 0.015, -0.025, UPPER_DECK_Z + 0.004), (0.006, 0.004, 0.003), mats["ic_black"]),
+        ("wire_div_tap_gpio34",   (-0.009,  0.030, UPPER_DECK_Z + 0.008), (0.0012, 0.020, 0.0012), mats["wire_cyan"]),
+
+        # ---------------------------------------------------------------------
+        # 7. Motor Power Leads (Left & Right L298N to 4x TT Motors)
+        # ---------------------------------------------------------------------
+        # Left L298N to Front-Left Motor
+        ("wire_mot_fl_pos", (-0.038, 0.025, (UPPER_DECK_Z + LOWER_DECK_Z)/2), (0.012, 0.0018, 0.025), mats["wire_red"]),
+        ("wire_mot_fl_neg", (-0.040, 0.025, (UPPER_DECK_Z + LOWER_DECK_Z)/2), (0.012, 0.0018, 0.025), mats["wire_black"]),
+        # Left L298N to Rear-Left Motor
+        ("wire_mot_rl_pos", (-0.038, -0.050, (UPPER_DECK_Z + LOWER_DECK_Z)/2), (0.012, 0.0018, 0.025), mats["wire_red"]),
+        ("wire_mot_rl_neg", (-0.040, -0.050, (UPPER_DECK_Z + LOWER_DECK_Z)/2), (0.012, 0.0018, 0.025), mats["wire_black"]),
+        # Right L298N to Front-Right Motor
+        ("wire_mot_fr_pos", ( 0.038, 0.025, (UPPER_DECK_Z + LOWER_DECK_Z)/2), (0.012, 0.0018, 0.025), mats["wire_red"]),
+        ("wire_mot_fr_neg", ( 0.040, 0.025, (UPPER_DECK_Z + LOWER_DECK_Z)/2), (0.012, 0.0018, 0.025), mats["wire_black"]),
+        # Right L298N to Rear-Right Motor
+        ("wire_mot_rr_pos", ( 0.038, -0.050, (UPPER_DECK_Z + LOWER_DECK_Z)/2), (0.012, 0.0018, 0.025), mats["wire_red"]),
+        ("wire_mot_rr_neg", ( 0.040, -0.050, (UPPER_DECK_Z + LOWER_DECK_Z)/2), (0.012, 0.0018, 0.025), mats["wire_black"])
     ]
 
     for wname, loc, sz, mat in wire_specs:
@@ -1258,6 +1313,31 @@ def render_previews():
 
     # Render Exploded Assembly View
     render_exploded_view(scene, cam_obj)
+
+    # -------------------------------------------------------------------------
+    # Dedicated Hardware Wiring Inspection Views (saved to docs/hardware/renders/)
+    # -------------------------------------------------------------------------
+    wiring_views = [
+        ("wiring_top_view.png", (0.001, 0.001, 0.38), (0.0, 0.0, 0.050)),
+        ("wiring_front_three_quarter.png", (0.22, 0.24, 0.18), (0.0, 0.015, 0.055)),
+        ("wiring_electronics_closeup.png", (0.12, 0.01, 0.14), (0.0, -0.010, 0.060)),
+        ("wiring_power_path.png", (0.18, -0.22, 0.16), (0.0, -0.040, 0.055)),
+        ("wiring_gpio_closeup.png", (0.06, 0.06, 0.10), (0.0, 0.045, 0.065)),
+        ("wiring_motor_connections.png", (-0.22, 0.02, 0.09), (-0.035, 0.0, 0.035))
+    ]
+
+    print("Rendering dedicated wiring inspection perspectives...")
+    sys.stdout.flush()
+    for filename, cam_loc, target_loc in wiring_views:
+        cam_obj.location = cam_loc
+        point_camera_at(cam_obj, target_loc)
+        out_path = os.path.join(HARDWARE_RENDERS_DIR, filename)
+        scene.render.filepath = out_path
+        print(f"Rendering wiring preview {filename} -> {out_path}...")
+        sys.stdout.flush()
+        bpy.ops.render.render(write_still=True)
+        print(f"Saved wiring preview: {out_path}")
+        sys.stdout.flush()
 
     bpy.data.objects.remove(cam_obj)
 
