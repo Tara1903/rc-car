@@ -1350,7 +1350,7 @@ def render_previews():
     # 2. Render Exploded Assembly View (saves to both PREVIEWS_DIR and HARDWARE_RENDERS_DIR)
     render_exploded_view(scene, cam_obj)
 
-    # 3. Dedicated 13 Final Engineering Perspectives (docs/hardware/renders/)
+    # 3. Dedicated 19 Final Engineering Perspectives (docs/hardware/renders/)
     hardware_views = [
         ("final_front_three_quarter.png", (0.28, 0.30, 0.20), (0.0, 0.0, 0.045)),
         ("final_rear_three_quarter.png", (0.28, -0.30, 0.20), (0.0, 0.0, 0.045)),
@@ -1358,10 +1358,15 @@ def render_previews():
         ("final_side_view.png", (0.36, 0.0, 0.045), (0.0, 0.0, 0.045)),
         ("final_bottom_view.png", (0.001, 0.001, -0.42), (0.0, 0.0, 0.025)),
         ("final_electronics_closeup.png", (0.13, 0.02, 0.16), (0.0, 0.015, 0.062)),
+        ("final_wheel_motor_detail.png", (0.135, 0.090, 0.070), (0.065, 0.065, 0.033)),
+        ("final_esp32_detail.png", (0.045, 0.085, 0.115), (0.0, 0.045, 0.065)),
+        ("final_l298n_detail.png", (0.075, -0.045, 0.120), (0.026, -0.015, 0.068)),
+        ("final_xl6019_detail.png", (0.045, -0.115, 0.115), (0.0, -0.068, 0.068)),
         ("final_power_path.png", (0.18, -0.22, 0.16), (0.0, -0.040, 0.055)),
         ("final_gpio_wiring.png", (0.06, 0.06, 0.10), (0.0, 0.045, 0.065)),
         ("final_motor_connections.png", (-0.22, 0.02, 0.09), (-0.035, 0.0, 0.035)),
         ("final_android_camera_view.png", (0.0, -0.310, 0.145), (0.0, 0.020, 0.045)),
+        ("final_android_viewer.png", (0.0, -0.310, 0.145), (0.0, 0.020, 0.045)),
         ("final_complete_wiring_render.png", (0.16, -0.16, 0.20), (0.0, -0.010, 0.055)),
         # Legacy wiring inspection filenames preserved for existing doc links
         ("wiring_top_view.png", (0.001, 0.001, 0.38), (0.0, 0.0, 0.050)),
@@ -1387,6 +1392,11 @@ def render_previews():
 
     # 4. Render Differential Steering Perspective (with visual rotation vectors)
     render_differential_steering_view(scene, cam_obj)
+
+    # 5. Render Physics Dynamics & Collision Scenarios
+    render_physics_forward_motion_view(scene, cam_obj)
+    render_physics_pivot_turn_view(scene, cam_obj)
+    render_physics_collision_view(scene, cam_obj)
 
     bpy.data.objects.remove(cam_obj)
 
@@ -1452,6 +1462,134 @@ def render_differential_steering_view(scene, cam_obj):
         bpy.data.objects.remove(obj, do_unlink=True)
     print("Cleaned up differential steering indicator objects.")
     sys.stdout.flush()
+
+def render_physics_forward_motion_view(scene, cam_obj):
+    """
+    Renders final_physics_forward_motion.png showing vehicle forward velocity vector,
+    chassis acceleration pitch squat, and forward wheel rotation indicators.
+    """
+    out_path = os.path.join(HARDWARE_RENDERS_DIR, "final_physics_forward_motion.png")
+    print(f"Rendering physics forward motion perspective -> {out_path}...")
+    sys.stdout.flush()
+
+    temp_objs = []
+    mat_green = bpy.data.materials.get("Mat_WireGreen")
+    mat_cyan = bpy.data.materials.get("Mat_WireBlue")
+
+    # Forward velocity vector arrow in front of vehicle (+Y in Blender)
+    arr = create_cube("temp_fwd_arr", size=(0.008, 0.080, 0.008), location=(0.0, DECK_L / 2.0 + 0.045, AXLE_Z), material=mat_green)
+    temp_objs.append(arr)
+    head = create_cylinder("temp_fwd_head", radius=0.012, depth=0.018, location=(0.0, DECK_L / 2.0 + 0.090, AXLE_Z), rotation=(math.radians(90), 0, 0), material=mat_green)
+    temp_objs.append(head)
+
+    # All 4 wheels forward rotation indicators
+    for x_side in (-TRACK_X, TRACK_X):
+        for y_axle in (WHEELBASE_Y, -WHEELBASE_Y):
+            dx = -0.012 if x_side < 0 else 0.012
+            spin_arr = create_cube(f"temp_spin_{x_side}_{y_axle}", size=(0.004, 0.028, 0.004), location=(x_side + dx, y_axle, AXLE_Z + WHEEL_RADIUS * 0.75), material=mat_cyan)
+            temp_objs.append(spin_arr)
+
+    # Dynamic chassis pitch squat under acceleration (-X rotation in Blender tilts nose up / rear down)
+    chassis_root = bpy.data.objects.get("chassis_root")
+    orig_rot = chassis_root.rotation_euler.copy() if chassis_root else None
+    if chassis_root:
+        chassis_root.rotation_euler.x = math.radians(-3.0)
+
+    cam_obj.location = (0.26, -0.22, 0.14)
+    point_camera_at(cam_obj, (0.0, 0.02, 0.045))
+    scene.render.filepath = out_path
+    bpy.ops.render.render(write_still=True)
+    print(f"Saved physics forward motion render: {out_path}")
+    sys.stdout.flush()
+
+    if chassis_root and orig_rot:
+        chassis_root.rotation_euler = orig_rot
+
+    for obj in temp_objs:
+        bpy.data.objects.remove(obj, do_unlink=True)
+
+
+def render_physics_pivot_turn_view(scene, cam_obj):
+    """
+    Renders final_physics_pivot_turn.png showing in-place skid-steer counter-rotation
+    and high angular yaw velocity.
+    """
+    out_path = os.path.join(HARDWARE_RENDERS_DIR, "final_physics_pivot_turn.png")
+    print(f"Rendering physics pivot turn perspective -> {out_path}...")
+    sys.stdout.flush()
+
+    temp_objs = []
+    mat_green = bpy.data.materials.get("Mat_WireGreen")
+    mat_red = bpy.data.materials.get("Mat_WireRed")
+    mat_cyan = bpy.data.materials.get("Mat_WireBlue")
+
+    # Right wheels forward (+Y), Left wheels reverse (-Y)
+    for y_axle in (WHEELBASE_Y, -WHEELBASE_Y):
+        arr_r = create_cube(f"temp_pt_r_{y_axle}", size=(0.005, 0.035, 0.005), location=(TRACK_X + 0.022, y_axle, AXLE_Z + WHEEL_RADIUS * 0.70), material=mat_green)
+        temp_objs.append(arr_r)
+        arr_l = create_cube(f"temp_pt_l_{y_axle}", size=(0.005, 0.035, 0.005), location=(-TRACK_X - 0.022, y_axle, AXLE_Z + WHEEL_RADIUS * 0.70), material=mat_red)
+        temp_objs.append(arr_l)
+
+    # Overhead yaw rotation indicator
+    yaw_ring = create_cylinder("temp_pt_yaw_ring", radius=0.075, depth=0.003, location=(0.0, 0.0, UPPER_DECK_Z + STANDOFF_H + 0.040), vertices=32, material=mat_cyan)
+    temp_objs.append(yaw_ring)
+
+    cam_obj.location = (0.22, 0.22, 0.28)
+    point_camera_at(cam_obj, (0.0, 0.0, 0.045))
+    scene.render.filepath = out_path
+    bpy.ops.render.render(write_still=True)
+    print(f"Saved physics pivot turn render: {out_path}")
+    sys.stdout.flush()
+
+    for obj in temp_objs:
+        bpy.data.objects.remove(obj, do_unlink=True)
+
+
+def render_physics_collision_view(scene, cam_obj):
+    """
+    Renders final_physics_collision.png showing contact with a static obstacle crate,
+    collision bounding geometry, and impact reaction.
+    """
+    out_path = os.path.join(HARDWARE_RENDERS_DIR, "final_physics_collision.png")
+    print(f"Rendering physics collision perspective -> {out_path}...")
+    sys.stdout.flush()
+
+    temp_objs = []
+    mat_orange = bpy.data.materials.get("Mat_PowerPositive") or bpy.data.materials.get("Mat_WireRed")
+    mat_cyan = bpy.data.materials.get("Mat_WireBlue")
+
+    # Obstacle crate immediately in front of vehicle front bumper (+Y)
+    obs_box = create_cube(
+        "temp_obs_crate",
+        size=(0.090, 0.090, 0.070),
+        location=(0.0, DECK_L / 2.0 + 0.045, 0.035),
+        material=mat_orange
+    )
+    temp_objs.append(obs_box)
+
+    # Collision bounding contact normal arrow (pointing backward out of obstacle)
+    normal_arrow = create_cube("temp_col_normal", size=(0.006, 0.040, 0.006), location=(0.0, DECK_L / 2.0 + 0.005, 0.040), material=mat_cyan)
+    temp_objs.append(normal_arrow)
+
+    # Impact pitch dive (+X rotation in Blender tilts nose down)
+    chassis_root = bpy.data.objects.get("chassis_root")
+    orig_rot = chassis_root.rotation_euler.copy() if chassis_root else None
+    if chassis_root:
+        chassis_root.rotation_euler.x = math.radians(2.8)
+
+    cam_obj.location = (0.24, 0.18, 0.15)
+    point_camera_at(cam_obj, (0.0, 0.08, 0.045))
+    scene.render.filepath = out_path
+    bpy.ops.render.render(write_still=True)
+    print(f"Saved physics collision render: {out_path}")
+    sys.stdout.flush()
+
+    if chassis_root and orig_rot:
+        chassis_root.rotation_euler = orig_rot
+
+    for obj in temp_objs:
+        bpy.data.objects.remove(obj, do_unlink=True)
+
 
 def render_exploded_view(scene, cam_obj):
     """
