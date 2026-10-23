@@ -81,10 +81,11 @@ class SafetyInterlock(
             zeroSpeedStartTime = 0L
         }
 
+        val isActivelyBraking = isBraking && !reverseReady
         return ResolvedControl(
             normalizedThrottle = throttle,
             normalizedSteering = steering,
-            isBrakeEngaged = isBraking,
+            isBrakeEngaged = isActivelyBraking,
             isReverseReady = reverseReady
         )
     }

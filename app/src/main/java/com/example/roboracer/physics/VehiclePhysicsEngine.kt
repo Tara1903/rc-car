@@ -213,7 +213,7 @@ class VehiclePhysicsEngine(
         // 1. Resolve normalized motor command efforts
         val leftEffort: Float
         val rightEffort: Float
-        if (isBraking) {
+        if (isBraking && throttle >= 0.0f) {
             leftEffort = 0.0f
             rightEffort = 0.0f
         } else if (abs(throttle) < 0.02f && abs(steering) > 0.02f) {
@@ -236,7 +236,7 @@ class VehiclePhysicsEngine(
         var newWheelSpeedL = s.wheelSpeedL + (targetWheelSpeedL - s.wheelSpeedL) * (wheelResponseRate * dt).coerceAtMost(1.0f)
         var newWheelSpeedR = s.wheelSpeedR + (targetWheelSpeedR - s.wheelSpeedR) * (wheelResponseRate * dt).coerceAtMost(1.0f)
 
-        if (isBraking) {
+        if (isBraking && throttle >= 0.0f) {
             val brakeDecel = 12.0f * dt
             newWheelSpeedL = approachZero(newWheelSpeedL, brakeDecel)
             newWheelSpeedR = approachZero(newWheelSpeedR, brakeDecel)
@@ -283,7 +283,7 @@ class VehiclePhysicsEngine(
         } else 0.0f
 
         val aeroDrag = 0.35f * currentLinearSpeed * abs(currentLinearSpeed)
-        val brakingForce = if (isBraking && abs(currentLinearSpeed) > 0.01f) {
+        val brakingForce = if (isBraking && throttle >= 0.0f && abs(currentLinearSpeed) > 0.01f) {
             val brakeSign = if (currentLinearSpeed > 0f) 1.0f else -1.0f
             brakeSign * 2.0f * maxFrictionForce
         } else 0.0f
@@ -299,7 +299,7 @@ class VehiclePhysicsEngine(
 
         // 6. Integrate velocities
         var newLinearSpeed = currentLinearSpeed + longitudinalAccel * dt
-        if (isBraking && currentLinearSpeed * newLinearSpeed < 0f) {
+        if (isBraking && throttle >= 0.0f && currentLinearSpeed * newLinearSpeed < 0f) {
             newLinearSpeed = 0.0f // Zero-crossing clamp under active braking
         }
 
@@ -383,7 +383,7 @@ class VehiclePhysicsEngine(
         // Pitch and roll effects are strictly visual inertial response cues (simulating tire rubber deflection
         // and visual motion cues) to improve digital twin feedback in the 3D viewport.
         val targetPitch = when {
-            isBraking -> 3.2f // Visual dive cue under braking
+            isBraking && throttle >= 0.0f -> 3.2f // Visual dive cue under braking
             longitudinalAccel > 0.5f -> (-longitudinalAccel * 0.65f).coerceIn(-3.0f, 0.0f) // Visual squat cue
             longitudinalAccel < -0.5f -> (-longitudinalAccel * 0.55f).coerceIn(0.0f, 3.5f) // Reverse dive cue
             else -> 0.0f

@@ -73,26 +73,33 @@ class MockVehicleTransport(
 
                 val cmd = lastCmd
                 if (cmd != null) {
-                    val targetLeft = if (cmd.leftDir == MotorDir.STOP) 0 else cmd.leftSpeed
-                    val targetRight = if (cmd.rightDir == MotorDir.STOP) 0 else cmd.rightSpeed
+                    val targetLeft = when (cmd.leftDir) {
+                        MotorDir.FORWARD -> cmd.leftSpeed
+                        MotorDir.REVERSE -> -cmd.leftSpeed
+                        else -> 0
+                    }
+                    val targetRight = when (cmd.rightDir) {
+                        MotorDir.FORWARD -> cmd.rightSpeed
+                        MotorDir.REVERSE -> -cmd.rightSpeed
+                        else -> 0
+                    }
 
                     // Inertia simulation
                     simLeftSpeed += ((targetLeft - simLeftSpeed) * 0.3f).toInt()
                     simRightSpeed += ((targetRight - simRightSpeed) * 0.3f).toInt()
 
                     // Synthetic voltage sag under motor load for UI demonstration only
-                    // (Simulates high internal resistance of 4x AA alkaline pack; not measured hardware data)
-                    val loadSag = ((simLeftSpeed + simRightSpeed) / 510.0f * 600.0f).toInt()
+                    val loadSag = ((kotlin.math.abs(simLeftSpeed) + kotlin.math.abs(simRightSpeed)) / 510.0f * 600.0f).toInt()
                     val nominalBatt = 6000 - (counter / 20) // Slow natural discharge
                     simBatteryMv = (nominalBatt - loadSag).coerceIn(4400, 6400)
                 }
 
-                val state = if (simLeftSpeed > 0 || simRightSpeed > 0) SystemState.RUNNING else SystemState.IDLE
+                val state = if (simLeftSpeed != 0 || simRightSpeed != 0) SystemState.RUNNING else SystemState.IDLE
 
                 _telemetryFlow.value = TelemetryFrame(
                     state = state,
-                    leftActualSpeed = simLeftSpeed,
-                    rightActualSpeed = simRightSpeed,
+                    leftActualSpeed = kotlin.math.abs(simLeftSpeed),
+                    rightActualSpeed = kotlin.math.abs(simRightSpeed),
                     batteryMilliVolts = simBatteryMv,
                     faultFlags = 0,
                     fwCounter = counter and 0xFF,

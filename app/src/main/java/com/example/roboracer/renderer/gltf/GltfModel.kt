@@ -69,14 +69,14 @@ class GltfModel(
         // NOTE: In Mode B (Live Telemetry), leftPwm and rightPwm originate from the ESP32
         // firmware ramp generator as commanded PWM duty cycles [0..255], NOT encoder feedback.
         val leftFactor = when {
-            isBraking -> 0.0f
+            isBraking && throttle >= 0.0f -> 0.0f
             leftPwm > 0 -> (leftPwm / 255.0f) * (if (throttle < 0) -1.0f else 1.0f)
             abs(throttle) < 0.05f && abs(steering) > 0.05f -> steering.coerceIn(-1.0f, 1.0f)
             else -> (throttle + steering * 0.40f).coerceIn(-1.0f, 1.0f)
         }
 
         val rightFactor = when {
-            isBraking -> 0.0f
+            isBraking && throttle >= 0.0f -> 0.0f
             rightPwm > 0 -> (rightPwm / 255.0f) * (if (throttle < 0) -1.0f else 1.0f)
             abs(throttle) < 0.05f && abs(steering) > 0.05f -> (-steering).coerceIn(-1.0f, 1.0f)
             else -> (throttle - steering * 0.40f).coerceIn(-1.0f, 1.0f)

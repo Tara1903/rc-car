@@ -98,6 +98,7 @@ class CarGLSurfaceRenderer(var context: Context? = null) : GLSurfaceView.Rendere
     @Volatile var cameraTargetX: Float = 0.0f
     @Volatile var cameraTargetY: Float = 0.15f
     @Volatile var cameraTargetZ: Float = 0.0f
+    private var smoothedChaseYawDeg: Float = 0.0f
 
     // Real-time animation inputs & hardware telemetry
     // NOTE: leftCommandedPwm and rightCommandedPwm represent commanded output duty cycles [0..255]
@@ -144,6 +145,7 @@ class CarGLSurfaceRenderer(var context: Context? = null) : GLSurfaceView.Rendere
         cameraTargetX = 0.0f
         cameraTargetY = 0.15f
         cameraTargetZ = 0.0f
+        smoothedChaseYawDeg = physicsEngine.state.yawDeg
     }
 
     override fun onSurfaceCreated(gl: GL10?, config: EGLConfig?) {
@@ -230,8 +232,17 @@ class CarGLSurfaceRenderer(var context: Context? = null) : GLSurfaceView.Rendere
             physicsEngine.state
         }
 
-        // 2. Compute Camera View Matrix using Spherical Orbit Coordinates
-        val azRad = Math.toRadians(cameraAzimuthDeg.toDouble()).toFloat()
+        // 2. Compute Camera View Matrix using Spherical Orbit Coordinates with Third-Person Chase Cam
+        if (mode == DigitalTwinMode.SIMULATION) {
+            var diff = (pState.yawDeg - smoothedChaseYawDeg) % 360.0f
+            if (diff > 180.0f) diff -= 360.0f
+            if (diff < -180.0f) diff += 360.0f
+            smoothedChaseYawDeg += diff * (6.0f * dt).coerceAtMost(1.0f)
+        } else {
+            smoothedChaseYawDeg = 0.0f
+        }
+        val totalAzimuth = smoothedChaseYawDeg + cameraAzimuthDeg
+        val azRad = Math.toRadians(totalAzimuth.toDouble()).toFloat()
         val elRad = Math.toRadians(cameraElevationDeg.toDouble()).toFloat()
 
         val currentTargetX = (if (mode == DigitalTwinMode.SIMULATION) pState.x else 0.0f) + cameraTargetX
@@ -274,6 +285,7 @@ class CarGLSurfaceRenderer(var context: Context? = null) : GLSurfaceView.Rendere
         Matrix.setIdentityM(modelMatrix, 0)
         if (mode == DigitalTwinMode.SIMULATION) {
             Matrix.translateM(modelMatrix, 0, pState.x, 0.0f, pState.z)
+            Matrix.rotateM(modelMatrix, 0, pState.yawDeg, 0.0f, 1.0f, 0.0f)
         }
         Matrix.multiplyMM(mvpMatrix, 0, viewMatrix, 0, modelMatrix, 0)
         Matrix.multiplyMM(mvpMatrix, 0, projectionMatrix, 0, mvpMatrix, 0)
@@ -285,8 +297,9 @@ class CarGLSurfaceRenderer(var context: Context? = null) : GLSurfaceView.Rendere
         if (gModel != null && gShader != null) {
             if (mode == DigitalTwinMode.SIMULATION) {
                 // Apply dynamic 2D ground translation and yaw rotation to car_root
-                gModel.carRoot?.animTranslateX = pState.x
-                gModel.carRoot?.animTranslateZ = pState.z
+                // Note: divide translation by modelScale because carRoot.baseLocalMatrix scales local space
+                gModel.carRoot?.animTranslateX = pState.x / gModel.modelScale
+                gModel.carRoot?.animTranslateZ = pState.z / gModel.modelScale
                 gModel.carRoot?.animRotationYDeg = pState.yawDeg
 
                 // Pitch squat/dive & roll compliance

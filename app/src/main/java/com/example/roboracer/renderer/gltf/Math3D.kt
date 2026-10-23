@@ -71,13 +71,13 @@ object Math3D {
             setIdentityM(rm, rmOffset)
             if (nx < 0.0f) {
                 rm[rmOffset + 5] = c
-                rm[rmOffset + 6] = s
-                rm[rmOffset + 9] = -s
+                rm[rmOffset + 6] = -s
+                rm[rmOffset + 9] = s
                 rm[rmOffset + 10] = c
             } else {
                 rm[rmOffset + 5] = c
-                rm[rmOffset + 6] = -s
-                rm[rmOffset + 9] = s
+                rm[rmOffset + 6] = s
+                rm[rmOffset + 9] = -s
                 rm[rmOffset + 10] = c
             }
             return
@@ -86,13 +86,13 @@ object Math3D {
             setIdentityM(rm, rmOffset)
             if (ny < 0.0f) {
                 rm[rmOffset] = c
-                rm[rmOffset + 2] = -s
-                rm[rmOffset + 8] = s
+                rm[rmOffset + 2] = s
+                rm[rmOffset + 8] = -s
                 rm[rmOffset + 10] = c
             } else {
                 rm[rmOffset] = c
-                rm[rmOffset + 2] = s
-                rm[rmOffset + 8] = -s
+                rm[rmOffset + 2] = -s
+                rm[rmOffset + 8] = s
                 rm[rmOffset + 10] = c
             }
             return
@@ -101,13 +101,13 @@ object Math3D {
             setIdentityM(rm, rmOffset)
             if (nz < 0.0f) {
                 rm[rmOffset] = c
-                rm[rmOffset + 1] = s
-                rm[rmOffset + 4] = -s
+                rm[rmOffset + 1] = -s
+                rm[rmOffset + 4] = s
                 rm[rmOffset + 5] = c
             } else {
                 rm[rmOffset] = c
-                rm[rmOffset + 1] = -s
-                rm[rmOffset + 4] = s
+                rm[rmOffset + 1] = s
+                rm[rmOffset + 4] = -s
                 rm[rmOffset + 5] = c
             }
             return

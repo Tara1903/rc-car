@@ -285,6 +285,7 @@ fun CarViewport(
                             .border(1.dp, Color(0x33FFFFFF), RoundedCornerShape(6.dp))
                             .clickable {
                                 renderer.physicsEngine.reset()
+                                renderer.resetCamera()
                             }
                             .padding(horizontal = 6.dp, vertical = 4.dp)
                     ) {
