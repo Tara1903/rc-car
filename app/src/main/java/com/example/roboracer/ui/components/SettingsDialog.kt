@@ -10,6 +10,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -78,7 +79,7 @@ fun SettingsDialog(
         Box(
             modifier = Modifier
                 .width(540.dp)
-                .height(380.dp)
+                .heightIn(min = 320.dp, max = 440.dp)
                 .cyberpunkBorder(
                     borderColor = NeonYellow,
                     glowRadius = 12.dp,
@@ -198,6 +199,14 @@ fun SettingsDialog(
                                 }
                             }
                             Spacer(modifier = Modifier.height(6.dp))
+                            if (pairedDevices.isEmpty() && !isSimulatorMode) {
+                                Text(
+                                    text = "⚠ No paired Bluetooth devices found.\nPair your Prakti ESP32 in Android Settings → Bluetooth first.",
+                                    fontFamily = FontFamily.Monospace,
+                                    fontSize = 9.sp,
+                                    color = AccentRed.copy(alpha = 0.85f)
+                                )
+                            }
                         }
                     }
 

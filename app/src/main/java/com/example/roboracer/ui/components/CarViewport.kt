@@ -4,8 +4,8 @@ import android.opengl.GLSurfaceView
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectDragGestures
-import androidx.compose.foundation.gestures.detectTransformGestures
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -101,7 +101,6 @@ fun CarViewport(
         // 1. OpenGL ES Surface View with gesture recognizers for Orbit, Zoom and Pan
         AndroidView(
             factory = { ctx ->
-                renderer.context = ctx.applicationContext
                 GLSurfaceView(ctx).apply {
                     setEGLContextClientVersion(2)
                     setRenderer(renderer)
@@ -112,21 +111,49 @@ fun CarViewport(
             modifier = Modifier
                 .fillMaxSize()
                 .pointerInput(Unit) {
-                    detectTransformGestures { _, pan, zoom, _ ->
-                        if (zoom != 1.0f) {
-                            renderer.zoom(1.0f / zoom)
+                    awaitEachGesture {
+                        // Wait for first finger down
+                        val firstDown = awaitFirstDown(requireUnconsumed = false)
+                        var lastPos = firstDown.position
+
+                        while (true) {
+                            val event = awaitPointerEvent()
+                            val pressed = event.changes.filter { it.pressed }
+                            if (pressed.isEmpty()) break
+
+                            if (pressed.size == 1) {
+                                // Single-finger: orbit camera
+                                val newPos = pressed[0].position
+                                val delta = newPos - lastPos
+                                if (delta.getDistance() > 0.5f) {
+                                    renderer.orbit(delta.x * 0.45f, -delta.y * 0.35f)
+                                }
+                                lastPos = newPos
+                            } else if (pressed.size >= 2) {
+                                // Two-finger: compute centroid delta (pan) and scale (zoom)
+                                val prevPositions = pressed.map { it.previousPosition }
+                                val currPositions = pressed.map { it.position }
+
+                                val prevCentroid = prevPositions.fold(Offset.Zero) { acc, o -> acc + o } / prevPositions.size.toFloat()
+                                val currCentroid = currPositions.fold(Offset.Zero) { acc, o -> acc + o } / currPositions.size.toFloat()
+
+                                val pan = currCentroid - prevCentroid
+                                if (pan != Offset.Zero) {
+                                    renderer.pan(-pan.x * 0.003f, pan.y * 0.003f)
+                                }
+
+                                // Compute zoom from span change
+                                val prevSpan = (prevPositions[1] - prevPositions[0]).getDistance()
+                                val currSpan = (currPositions[1] - currPositions[0]).getDistance()
+                                if (prevSpan > 1f && currSpan > 1f) {
+                                    val zoomFactor = prevSpan / currSpan
+                                    renderer.zoom(zoomFactor)
+                                }
+
+                                lastPos = currCentroid
+                            }
+                            event.changes.forEach { it.consume() }
                         }
-                        if (pan != Offset.Zero) {
-                            // Two-finger pan
-                            renderer.pan(-pan.x * 0.003f, pan.y * 0.003f)
-                        }
-                    }
-                }
-                .pointerInput(Unit) {
-                    detectDragGestures { change, dragAmount ->
-                        change.consume()
-                        // One-finger drag rotates orbit camera
-                        renderer.orbit(dragAmount.x * 0.45f, -dragAmount.y * 0.35f)
                     }
                 },
             update = { glSurfaceView ->

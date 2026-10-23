@@ -13,12 +13,14 @@ import com.example.roboracer.bluetooth.protocol.TelemetryFrame
 import com.example.roboracer.control.RawTouchInput
 import com.example.roboracer.control.ResolvedControl
 import com.example.roboracer.control.VehicleControlEngine
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -48,31 +50,55 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
         it.telemetryFlow
     }.stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
-    private var controlEngine = VehicleControlEngine(sppTransport, viewModelScope)
+    // Stable wrapper flows: the UI subscribes to these once and they always reflect the
+    // current engine's output, even after setSimulatorMode() swaps the engine.
+    private val _rawTouchInput = MutableStateFlow(RawTouchInput())
+    val rawTouchInput: StateFlow<RawTouchInput> = _rawTouchInput.asStateFlow()
 
-    val rawTouchInput: StateFlow<RawTouchInput> get() = controlEngine.rawTouchInput
-    val resolvedControl: StateFlow<ResolvedControl> get() = controlEngine.resolvedControl
-    val lastSentCommand: StateFlow<CommandFrame> get() = controlEngine.lastSentCommand
-    val isEmergencyStopped: StateFlow<Boolean> get() = controlEngine.isEmergencyStopped
-    val mixer get() = controlEngine.mixer
+    private val _resolvedControl = MutableStateFlow(
+        ResolvedControl(0f, 0f, isBrakeEngaged = false, isReverseReady = false)
+    )
+    val resolvedControl: StateFlow<ResolvedControl> = _resolvedControl.asStateFlow()
+
+    private val _lastSentCommand = MutableStateFlow(CommandFrame.emergencyStop())
+    val lastSentCommand: StateFlow<CommandFrame> = _lastSentCommand.asStateFlow()
+
+    private val _isEmergencyStopped = MutableStateFlow(false)
+    val isEmergencyStopped: StateFlow<Boolean> = _isEmergencyStopped.asStateFlow()
 
     private val _isSettingsOpen = MutableStateFlow(false)
     val isSettingsOpen: StateFlow<Boolean> = _isSettingsOpen.asStateFlow()
 
+    private var controlEngine = VehicleControlEngine(sppTransport, viewModelScope)
+    private var engineBridgeJob: Job? = null
+
+    // mixer always refers to the current engine — safe because callers only read it
+    // from UI thread after the switch completes (SettingsDialog reads it lazily)
+    val mixer get() = controlEngine.mixer
+
     init {
         controlEngine.start()
+        attachEngineBridge(controlEngine)
     }
 
-    fun openSettings() {
-        _isSettingsOpen.value = true
+    // Collects all four engine flows into the stable wrapper flows so the UI
+    // continues working without re-subscribing when the engine is replaced.
+    private fun attachEngineBridge(engine: VehicleControlEngine) {
+        engineBridgeJob?.cancel()
+        engineBridgeJob = viewModelScope.launch {
+            launch { engine.rawTouchInput.collect { _rawTouchInput.value = it } }
+            launch { engine.resolvedControl.collect { _resolvedControl.value = it } }
+            launch { engine.lastSentCommand.collect { _lastSentCommand.value = it } }
+            launch { engine.isEmergencyStopped.collect { _isEmergencyStopped.value = it } }
+        }
     }
 
-    fun closeSettings() {
-        _isSettingsOpen.value = false
-    }
+    fun openSettings() { _isSettingsOpen.value = true }
+    fun closeSettings() { _isSettingsOpen.value = false }
 
     fun setSimulatorMode(enabled: Boolean) {
         _isSimulatorMode.value = enabled
+        engineBridgeJob?.cancel()
         controlEngine.stop()
         currentTransport.value.disconnect()
 
@@ -81,15 +107,19 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
 
         controlEngine = VehicleControlEngine(newTransport, viewModelScope)
         controlEngine.start()
+        attachEngineBridge(controlEngine)
+
+        // Reset wrapper state to neutral on mode switch
+        _rawTouchInput.value = RawTouchInput()
+        _resolvedControl.value = ResolvedControl(0f, 0f, isBrakeEngaged = false, isReverseReady = false)
+        _isEmergencyStopped.value = false
 
         if (enabled) {
             newTransport.connect("00:11:22:33:44:55", "ROBO-RACER-ESP32 (Simulated)")
         }
     }
 
-    fun getBondedDevices(): List<DiscoveredDevice> {
-        return currentTransport.value.getBondedDevices()
-    }
+    fun getBondedDevices(): List<DiscoveredDevice> = currentTransport.value.getBondedDevices()
 
     fun connectDevice(device: DiscoveredDevice) {
         currentTransport.value.connect(device.address, device.name)
@@ -100,19 +130,19 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
     }
 
     fun onLeftSteerTouch(pressed: Boolean) {
-        controlEngine.updateSteering(left = pressed, right = rawTouchInput.value.isRightSteerPressed)
+        controlEngine.updateSteering(left = pressed, right = _rawTouchInput.value.isRightSteerPressed)
     }
 
     fun onRightSteerTouch(pressed: Boolean) {
-        controlEngine.updateSteering(left = rawTouchInput.value.isLeftSteerPressed, right = pressed)
+        controlEngine.updateSteering(left = _rawTouchInput.value.isLeftSteerPressed, right = pressed)
     }
 
     fun onBrakeTouch(pressed: Boolean) {
-        controlEngine.updateDrive(accel = rawTouchInput.value.isAccelPressed, brake = pressed)
+        controlEngine.updateDrive(accel = _rawTouchInput.value.isAccelPressed, brake = pressed)
     }
 
     fun onAccelTouch(pressed: Boolean) {
-        controlEngine.updateDrive(accel = pressed, brake = rawTouchInput.value.isBrakePressed)
+        controlEngine.updateDrive(accel = pressed, brake = _rawTouchInput.value.isBrakePressed)
     }
 
     fun emergencyStop() {
@@ -129,6 +159,7 @@ class ControllerViewModel(application: Application) : AndroidViewModel(applicati
 
     override fun onCleared() {
         super.onCleared()
+        engineBridgeJob?.cancel()
         controlEngine.stop()
         currentTransport.value.disconnect()
     }

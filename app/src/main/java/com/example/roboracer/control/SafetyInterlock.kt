@@ -16,10 +16,9 @@ class SafetyInterlock(
      *
      * Note on Physical Ground Speed:
      * In an open-loop 4WD robot without physical wheel encoders or tachometers,
-     * telemetry actual_speed reflects commanded PWM duty cycle, not ground speed.
-     * The 500ms dwell window provides an electrical and mechanical settling period
-     * to prevent instantaneous H-bridge polarity inversion, but does NOT represent
-     * proof that the physical vehicle has achieved zero ground velocity.
+     * there is no measured ground speed. The 500ms dwell window provides an electrical
+     * and mechanical settling period to prevent instantaneous H-bridge polarity inversion,
+     * but does NOT represent proof that the physical vehicle has achieved zero ground velocity.
      */
     fun resolve(
         input: RawTouchInput,
@@ -53,11 +52,10 @@ class SafetyInterlock(
                 throttle = 0.0f
                 reverseReady = false
             } else if (isPreviouslyMovingForward) {
-                // Car has reached zero speed; enforce electrical/mechanical dwell window
+                // Car has reached zero speed (or zero commanded speed); enforce electrical/mechanical dwell window
                 if (zeroSpeedStartTime == 0L) {
                     zeroSpeedStartTime = currentTimeMs
                 }
-
                 val dwellTime = currentTimeMs - zeroSpeedStartTime
                 if (dwellTime >= reverseInterlockDelayMs) {
                     // Safe to reverse (capped at maxReverseSpeedRatio)

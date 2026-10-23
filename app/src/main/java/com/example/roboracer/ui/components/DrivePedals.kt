@@ -31,7 +31,6 @@ import com.example.roboracer.theme.AccentRed
 import com.example.roboracer.theme.AccelActive
 import com.example.roboracer.theme.AccelGlow
 import com.example.roboracer.theme.BrakeActive
-import com.example.roboracer.theme.BrakeIdle
 import com.example.roboracer.theme.DarkPanelSurface
 import com.example.roboracer.theme.NeonYellow
 import com.example.roboracer.theme.NeonYellowBright
